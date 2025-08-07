@@ -12,13 +12,11 @@ if (isset($_GET['id_factura'])) {
     die("Error: No se proporcionó el ID de la factura.");
 }
 
-// Consultar datos de la factura
+// Consultar factura principal y docente
 $stmt = $conn->prepare("
-    SELECT f.*, d.nombre AS docente_nombre, d.identificacion, df.porcentaje_pago, df.descripcion, df.monto, p.codigo AS cohorte
+    SELECT f.*, d.nombre AS docente_nombre, d.identificacion
     FROM factura f
     JOIN docente d ON f.id_docente = d.id_docente
-    JOIN detalle_factura df ON df.id_factura = f.id_factura
-    JOIN periodo p ON df.id_periodo = p.id_periodo
     WHERE f.id_factura = ?
 ");
 $stmt->bind_param("i", $id_factura);
@@ -30,7 +28,18 @@ if (!$factura) {
     die('Factura no encontrada');
 }
 
-$metodo_pago = isset($factura['metodo_pago']) ? $factura['metodo_pago'] : 'Efectivo';
+// Consultar detalles de factura (múltiples cursos)
+$stmt_detalle = $conn->prepare("
+    SELECT df.porcentaje_pago, df.descripcion, df.monto
+    FROM detalle_factura df
+    WHERE df.id_factura = ?
+");
+$stmt_detalle->bind_param("i", $id_factura);
+$stmt_detalle->execute();
+$detalle_result = $stmt_detalle->get_result();
+$detalles = $detalle_result->fetch_all(MYSQLI_ASSOC);
+
+$metodo_pago = !empty($factura['metodo_pago']) ? $factura['metodo_pago'] : 'Efectivo';
 
 class PDF extends FPDF
 {
@@ -76,7 +85,7 @@ $pdf->Cell(140, 7, utf8_decode($factura['docente_nombre']), 1, 1);
 
 // LA SUMA DE
 $pdf->Cell(50, 7, utf8_decode('LA SUMA DE:'), 1, 0);
-$pdf->Cell(140, 7, utf8_decode(numeroALetras($factura['total_pago']) . ' pesos'), 1, 1);
+$pdf->Cell(140, 7, utf8_decode(numeroALetras($factura['total_pago']) . ' PESOS'), 1, 1);
 
 // POR CONCEPTO DE
 $pdf->Cell(50, 7, utf8_decode('POR CONCEPTO DE:'), 1, 0);
@@ -92,10 +101,15 @@ $pdf->SetFont('Arial', '', 10);
 $pdf->Cell(95, 7, utf8_decode('IPC'), 1, 0, 'C');
 $pdf->Cell(95, 7, '', 1, 1, 'C');
 
-$pdf->Cell(95, 7, utf8_decode($factura['porcentaje_pago'] . ' de ' . $factura['descripcion']), 1, 0);
-$pdf->Cell(95, 7, '$' . number_format($factura['monto'], 2) . ' PESOS', 1, 1, 'R');
+// Mostrar todos los cursos
+foreach ($detalles as $detalle) {
+    $concepto = utf8_decode($detalle['porcentaje_pago'] . ' de ' . $detalle['descripcion']);
+    $monto = '$' . number_format($detalle['monto'], 2) . ' PESOS';
+    $pdf->Cell(95, 7, $concepto, 1, 0);
+    $pdf->Cell(95, 7, $monto, 1, 1, 'R');
+}
 
-// MÉTODO DE PAGO alineado a la derecha
+// MÉTODO DE PAGO
 $pdf->Ln(5);
 $pdf->SetXY(115, $pdf->GetY());
 $pdf->SetFont('Arial', 'B', 10);
@@ -103,18 +117,17 @@ $pdf->Cell(45, 10, utf8_decode('MÉTODO DE PAGO:'), 1, 0, 'L');
 $pdf->SetFont('Arial', '', 10);
 $pdf->Cell(40, 10, utf8_decode($metodo_pago), 1, 1, 'L');
 
-// TOTAL alineado a la derecha
+// TOTAL
 $pdf->SetXY(115, $pdf->GetY());
 $pdf->SetFont('Arial', 'B', 10);
 $pdf->Cell(45, 10, utf8_decode('TOTAL:'), 1, 0, 'L');
 $pdf->Cell(40, 10, '$' . number_format($factura['total_pago'], 2), 1, 1, 'R');
 
-// Firma con línea sobre el texto
+// Firma
 $pdf->Ln(20);
 $y_firma = $pdf->GetY();
-$pdf->Line(20, $y_firma, 100, $y_firma); // Línea firma
-$pdf->Line(115, $y_firma, 195, $y_firma); // Línea C.I.
-
+$pdf->Line(20, $y_firma, 100, $y_firma);
+$pdf->Line(115, $y_firma, 195, $y_firma);
 $pdf->SetFont('Arial', '', 10);
 $pdf->SetXY(20, $y_firma + 2);
 $pdf->Cell(80, 7, utf8_decode('Firma del Beneficiario'), 0, 0, 'C');

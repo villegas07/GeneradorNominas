@@ -65,94 +65,113 @@ $liquidaciones = $conn->query("
     JOIN periodo p ON u.id_periodo = p.id_periodo
     ORDER BY l.id_liquidacion DESC
 ");
+
+include '../includes/header.php';
+include '../includes/navbar.php';
 ?>
-<?php include '../includes/header.php'; include '../includes/navbar.php'; ?>
 
 <div class="container mt-5">
-    <h2>Liquidaciones</h2>
+    <div class="card shadow-sm border-0 rounded-4">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center rounded-top-4">
+            <h5 class="mb-0">Gestión de Liquidaciones</h5>
+            <button class="btn btn-light btn-sm fw-semibold" data-bs-toggle="collapse" data-bs-target="#formRegistro">
+                ➕ Nueva Liquidación
+            </button>
+        </div>
 
-    <form id="formLiquidar" class="row g-3 mb-4">
-        <input type="hidden" name="accion" value="crear_liquidacion">
-        <div class="col-md-3">
-            <label>Docente</label>
-            <select name="id_docente" id="select_docente" class="form-select" required>
-                <option value="">Seleccione docente</option>
-                <?php while($d = $docentes->fetch_assoc()): ?>
-                <option value="<?= $d['id_docente'] ?>"><?= htmlspecialchars($d['nombre']) ?></option>
-                <?php endwhile; ?>
-            </select>
-        </div>
-        <div class="col-md-3">
-            <label>Unidad</label>
-            <select name="id_unidad" id="select_unidad" class="form-select" required disabled>
-                <option value="">Seleccione unidad</option>
-            </select>
-        </div>
-        <div class="col-md-2">
-            <label>N° Estudiantes</label>
-            <input type="number" name="numero_estudiantes" id="numero_estudiantes" class="form-control" required disabled>
-        </div>
-        <div class="col-md-2">
-            <label>Valor unitario</label>
-            <input type="text" name="valor_unit" id="valor_unit" class="form-control" readonly>
-        </div>
-        <div class="col-md-2">
-            <label>&nbsp;</label>
-            <button type="submit" class="btn btn-success w-100" disabled id="btn_liquidar">Liquidar</button>
-        </div>
-        <div class="col-md-12">
-            <label>Observación (opcional)</label>
-            <textarea name="observacion" class="form-control" rows="2"></textarea>
-        </div>
-    </form>
+        <div class="collapse" id="formRegistro">
+            <div class="card-body">
+                <form id="formLiquidar" class="row g-3">
+                    <input type="hidden" name="accion" value="crear_liquidacion">
 
-    <!-- 🔎 Campo de búsqueda -->
-    <div class="mb-3">
-        <input type="text" id="buscar" class="form-control" placeholder="Buscar por docente, cohorte o unidad...">
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">Docente</label>
+                        <select name="id_docente" id="select_docente" class="form-select" required>
+                            <option value="">Seleccione docente</option>
+                            <?php while($d = $docentes->fetch_assoc()): ?>
+                            <option value="<?= $d['id_docente'] ?>"><?= htmlspecialchars($d['nombre']) ?></option>
+                            <?php endwhile; ?>
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">Unidad</label>
+                        <select name="id_unidad" id="select_unidad" class="form-select" required disabled>
+                            <option value="">Seleccione unidad</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-2">
+                        <label class="form-label fw-semibold">N° Estudiantes</label>
+                        <input type="number" name="numero_estudiantes" id="numero_estudiantes" class="form-control" required disabled>
+                    </div>
+
+                    <div class="col-md-2">
+                        <label class="form-label fw-semibold">Valor unitario</label>
+                        <input type="text" name="valor_unit" id="valor_unit" class="form-control" readonly>
+                    </div>
+
+                    <div class="col-md-2">
+                        <label class="form-label fw-semibold">&nbsp;</label>
+                        <button type="submit" class="btn btn-success w-100 fw-semibold" disabled id="btn_liquidar">Liquidar</button>
+                    </div>
+
+                    <div class="col-md-12">
+                        <label class="form-label fw-semibold">Observación (opcional)</label>
+                        <textarea name="observacion" class="form-control" rows="2"></textarea>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
 
-    <div class="table-responsive">
-        <table id="tablaLiquidaciones" class="table table-bordered table-striped">
-            <thead class="table-dark">
-                <tr>
-                    <th>#</th>
-                    <th>Docente</th>
-                    <th>Unidad</th>
-                    <th>Grupo</th>
-                    <th>Cohorte</th>
-                    <th>Estudiantes</th>
-                    <th>Total</th>
-                    <th>50% / 50%</th>
-                    <th>Observación</th>
-                    <th>Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php $i=1; while($l = $liquidaciones->fetch_assoc()): ?>
-                <tr>
-                    <td><?= $i++ ?></td>
-                    <td><?= htmlspecialchars($l['docente_nombre']) ?></td>
-                    <td><?= htmlspecialchars($l['unidad_nombre']) ?></td>
-                    <td><?= htmlspecialchars($l['grupo']) ?></td>
-                    <td><?= htmlspecialchars($l['cohorte']) ?></td>
-                    <td><?= intval($l['numero_estudiantes']) ?></td>
-                    <td>$<?= number_format($l['valor_total'],2) ?></td>
-                    <td>$<?= number_format($l['primer_pago'],2) ?> / $<?= number_format($l['segundo_pago'],2) ?></td>
-                    <td><?= htmlspecialchars($l['observacion']) ?></td>
-                    <td>
-                        <button class="btn btn-danger btn-sm" onclick="eliminarLiquidacion(<?= $l['id_liquidacion'] ?>)">Eliminar</button>
-                    </td>
-                </tr>
-                <?php endwhile; ?>
-            </tbody>
-        </table>
-    </div>
+    <div class="card mt-4 shadow-sm border-0 rounded-4">
+        <div class="card-body">
+            <div class="mb-3">
+                <input type="text" id="buscar" class="form-control shadow-sm" placeholder="🔍 Buscar por docente, cohorte o unidad...">
+            </div>
 
-    <!-- Paginación -->
-    <div class="d-flex justify-content-center mt-3">
-        <nav>
-            <ul class="pagination" id="pagination"></ul>
-        </nav>
+            <div class="table-responsive">
+                <table id="tablaLiquidaciones" class="table table-bordered table-hover align-middle rounded-4 overflow-hidden">
+                    <thead class="table-dark text-center">
+                        <tr>
+                            <th>#</th>
+                            <th>Docente</th>
+                            <th>Unidad</th>
+                            <th>Grupo</th>
+                            <th>Cohorte</th>
+                            <th>Estudiantes</th>
+                            <th>Total</th>
+                            <th>50% / 50%</th>
+                            <th>Observación</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php $i=1; while($l = $liquidaciones->fetch_assoc()): ?>
+                        <tr>
+                            <td class="text-center"><?= $i++ ?></td>
+                            <td><?= htmlspecialchars($l['docente_nombre']) ?></td>
+                            <td><?= htmlspecialchars($l['unidad_nombre']) ?></td>
+                            <td><?= htmlspecialchars($l['grupo']) ?></td>
+                            <td><?= htmlspecialchars($l['cohorte']) ?></td>
+                            <td class="text-center"><?= intval($l['numero_estudiantes']) ?></td>
+                            <td>$<?= number_format($l['valor_total'],2) ?></td>
+                            <td>$<?= number_format($l['primer_pago'],2) ?> / $<?= number_format($l['segundo_pago'],2) ?></td>
+                            <td><?= htmlspecialchars($l['observacion']) ?></td>
+                            <td class="text-center">
+                                <button class="btn btn-outline-danger btn-sm" onclick="eliminarLiquidacion(<?= $l['id_liquidacion'] ?>)">Eliminar</button>
+                            </td>
+                        </tr>
+                        <?php endwhile; ?>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="d-flex justify-content-center mt-3">
+                <ul class="pagination" id="pagination"></ul>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -162,7 +181,6 @@ const rowsPerPage = 10;
 let currentPage = 1;
 let filteredRows = [];
 
-// PAGINACIÓN Y FILTRO
 document.addEventListener('DOMContentLoaded', () => {
     const table = document.querySelector('#tablaLiquidaciones tbody');
     const rows = Array.from(table.getElementsByTagName('tr'));
@@ -210,15 +228,14 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 🔎 Filtro en tiempo real
-    document.getElementById('buscar').addEventListener('keyup', function() {
+    document.getElementById('buscar').addEventListener('input', function() {
         const term = this.value.toLowerCase();
         filteredRows = rows.filter(row => {
             const cols = row.getElementsByTagName('td');
             return (
-                cols[1].textContent.toLowerCase().includes(term) || // Docente
-                cols[2].textContent.toLowerCase().includes(term) || // Unidad
-                cols[4].textContent.toLowerCase().includes(term)    // Cohorte
+                cols[1].textContent.toLowerCase().includes(term) ||
+                cols[2].textContent.toLowerCase().includes(term) ||
+                cols[4].textContent.toLowerCase().includes(term)
             );
         });
         currentPage = 1;
@@ -230,7 +247,6 @@ document.addEventListener('DOMContentLoaded', () => {
     setupPagination();
 });
 
-// FUNCIONALIDAD EXISTENTE (cargar unidades, liquidar y eliminar)
 document.getElementById('select_docente').addEventListener('change', function() {
     const id = this.value;
     const selUn = document.getElementById('select_unidad');

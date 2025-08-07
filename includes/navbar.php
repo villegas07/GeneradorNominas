@@ -1,45 +1,49 @@
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-    <div class="container-fluid">
+<nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm sticky-top border-bottom">
+  <div class="container-fluid px-4">
 
-        <!-- Logo + Nombre -->
-        <a class="navbar-brand d-flex align-items-center" href="/nomina/index.php">
-            <img src="/nomina/assets/images/polinorte.png" alt="Logo" width="170" height="50" class="d-inline-block me-2">
-        </a>
+    <!-- Logo y título -->
+    <a class="navbar-brand d-flex align-items-center fw-bold text-primary" href="/nomina/index.php">
+      <img src="/nomina/assets/images/polinorte.png" alt="Logo" width="160" height="45" class="me-2">
+    </a>
 
-        <!-- Botón de hamburguesa para móviles -->
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar" aria-controls="mainNavbar" aria-expanded="false" aria-label="Toggle navigation">
-            <span class="navbar-toggler-icon"></span>
-        </button>
+    <!-- Menú hamburguesa móvil -->
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar" aria-controls="mainNavbar" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
 
-        <!-- Menú colapsable -->
-        <div class="collapse navbar-collapse" id="mainNavbar">
-            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+    <!-- Contenido del menú -->
+    <div class="collapse navbar-collapse" id="mainNavbar">
 
-                <!-- Enlaces de navegación -->
-                <li class="nav-item">
-                    <a class="nav-link" href="/nomina/pages/docentes.php">Docentes</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="/nomina/pages/liquidacion.php">Liquidaciones</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="/nomina/pages/unid_curricular.php">Unidades Curriculares</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="/nomina/pages/asignar_unidad.php">Asignar Unidade</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="/nomina/pages/sedes.php">Sedes</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="/nomina/pages/facturas.php">Facturas</a>
-                </li>
-            </ul>
+      <!-- Enlaces principales -->
+      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+        <li class="nav-item"><a class="nav-link" href="/nomina/pages/dashboard.php">🏠 Dashboard</a></li>
+        <li class="nav-item"><a class="nav-link" href="/nomina/pages/docentes.php">👩‍🏫 Docentes</a></li>
+        <li class="nav-item"><a class="nav-link" href="/nomina/pages/liquidacion.php">🧾 Liquidaciones</a></li>
+        <li class="nav-item"><a class="nav-link" href="/nomina/pages/unid_curricular.php">📘 Unidades Curriculares</a></li>
+        <li class="nav-item"><a class="nav-link" href="/nomina/pages/asignar_unidad.php">📝 Asignar Unidad</a></li>
+        <li class="nav-item"><a class="nav-link" href="/nomina/pages/sedes.php">🏫 Sedes</a></li>
+        <li class="nav-item"><a class="nav-link" href="/nomina/pages/facturas.php">💼 Facturas</a></li>
+        <li class="nav-item"><a class="nav-link" href="/nomina/pages/pagos_recibidos.php">💳 Pagos Recibidos</a></li>
+      </ul>
 
-            <!-- Usuario logueado (simulado) -->
-            <span class="navbar-text text-white">
-                <?php echo $_SESSION['usuario'] ?? 'Invitado'; ?>
-            </span>
-        </div>
+      <!-- Usuario y Logout -->
+      <ul class="navbar-nav ms-auto">
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle fw-semibold text-primary" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+            👤 <?php echo $_SESSION['usuario'] ?? 'Invitado'; ?>
+          </a>
+          <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+            <li><a class="dropdown-item" href="#">Perfil</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li>
+              <form action="/nomina/logout.php" method="POST" class="d-inline">
+                <button type="submit" class="dropdown-item text-danger">Cerrar sesión</button>
+              </form>
+            </li>
+          </ul>
+        </li>
+      </ul>
+
     </div>
+  </div>
 </nav>

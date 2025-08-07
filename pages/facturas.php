@@ -3,13 +3,13 @@ session_start();
 include '../config/db.php';
 
 // POST: emitir factura
-if ($_SERVER['REQUEST_METHOD']==='POST' && ($_POST['accion'] ?? '')==='emitir_factura') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['accion'] ?? '') === 'emitir_factura') {
     header('Content-Type: application/json');
     $id_docente = intval($_POST['id_docente']);
     $selecc = $_POST['seleccionados'] ?? [];
     $modo = $_POST['modo'] ?? 'inicial';
     if (empty($selecc)) {
-        echo json_encode(['success'=>false,'msg'=>'No liquidaciones seleccionadas.']);
+        echo json_encode(['success' => false, 'msg' => 'No liquidaciones seleccionadas.']);
         exit;
     }
     $conn->begin_transaction();
@@ -22,29 +22,29 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && ($_POST['accion'] ?? '')==='emitir_fa
                 FROM liquidacion l
                 JOIN unidad_curricular u ON u.id_unidad = l.id_unidad
                 JOIN periodo p ON u.id_periodo = p.id_periodo
-                WHERE l.id_liquidacion = ".intval($lid))->fetch_assoc();
+                WHERE l.id_liquidacion = " . intval($lid))->fetch_assoc();
             if (!$r) continue;
             $pendIni = !$r['pago_inicial_pagado'] ? $r['primer_pago'] : 0;
             $pendFin = $r['segundo_pago'];
-            $monto = ($modo==='inicial' && $pendIni>0)?$pendIni:$pendFin;
-            if ($monto<=0) continue;
+            $monto = ($modo === 'inicial' && $pendIni > 0) ? $pendIni : $pendFin;
+            if ($monto <= 0) continue;
             $total += $monto;
             $desc = "{$r['unidad']} (Grupo {$r['grupo']} - {$r['cohorte']})";
             $conn->query("INSERT INTO detalle_factura (id_factura, porcentaje_pago, id_periodo, tipo_concepto, descripcion, monto, observacion)
-                VALUES ($id_fact, '50%', {$r['id_periodo']}, 'Curso', '".addslashes($desc)."', $monto, '".addslashes($r['observacion'])."')");
-            if ($modo==='inicial') {
-                $conn->query("UPDATE liquidacion SET pago_inicial_pagado = 1 WHERE id_liquidacion=".intval($lid));
-            } elseif ($modo==='final') {
-                $conn->query("UPDATE liquidacion SET segundo_pago = 0 WHERE id_liquidacion=".intval($lid));
+                VALUES ($id_fact, '50%', {$r['id_periodo']}, 'Curso', '" . addslashes($desc) . "', $monto, '" . addslashes($r['observacion']) . "')");
+            if ($modo === 'inicial') {
+                $conn->query("UPDATE liquidacion SET pago_inicial_pagado = 1 WHERE id_liquidacion=" . intval($lid));
+            } elseif ($modo === 'final') {
+                $conn->query("UPDATE liquidacion SET segundo_pago = 0 WHERE id_liquidacion=" . intval($lid));
             }
         }
         $conn->query("UPDATE factura SET total_pago = $total WHERE id_factura = $id_fact");
         $conn->commit();
         $nombre = $conn->query("SELECT nombre FROM docente WHERE id_docente=$id_docente")->fetch_assoc()['nombre'];
-        echo json_encode(['success'=>true,'id_factura'=>$id_fact,'docente'=>$nombre,'total'=>number_format($total,2)]);
-    } catch(Exception $e){
+        echo json_encode(['success' => true, 'id_factura' => $id_fact, 'docente' => $nombre, 'total' => number_format($total, 2)]);
+    } catch (Exception $e) {
         $conn->rollback();
-        echo json_encode(['success'=>false,'msg'=>$e->getMessage()]);
+        echo json_encode(['success' => false, 'msg' => $e->getMessage()]);
     }
     exit;
 }
@@ -66,87 +66,111 @@ $facturas = $conn->query("
   ORDER BY f.id_factura DESC
 ");
 ?>
+
 <?php include '../includes/header.php'; include '../includes/navbar.php'; ?>
 
-<div class="container mt-4">
-    <h2>Emisión de Factura</h2>
+<!-- Agrega Bootstrap Icons para el icono + -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
 
-    <form id="formFactura" class="row g-3 mb-3">
-        <input type="hidden" name="accion" value="emitir_factura">
-        <div class="col-md-3">
-            <label>Docente</label>
-            <select name="id_docente" id="select_doc" class="form-select" required>
-                <option value="">Seleccione docente</option>
-                <?php while($d = $docentes->fetch_assoc()): ?>
-                <option value="<?= $d['id_docente'] ?>"><?=htmlspecialchars($d['nombre'])?></option>
-                <?php endwhile; ?>
-            </select>
+<div class="container mt-5">
+    <div class="card shadow-sm border-0 rounded-4">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center rounded-top-4">
+            <h5 class="mb-0">Emisión de Factura</h5>
+            <button class="btn btn-light btn-sm fw-semibold" data-bs-toggle="collapse" data-bs-target="#formCollapse"
+                aria-expanded="false" aria-controls="formCollapse">
+                ➕ Emitir Factura
+            </button>
         </div>
-        <div class="col-md-3">
-            <label>Modo de pago</label>
-            <select name="modo" id="select_modo" class="form-select">
-                <option value="inicial">50% Inicial</option>
-                <option value="final" selected>50% Final</option>
-            </select>
-        </div>
-        <div class="col-md-3">
-            <label>Total a facturar</label>
-            <input id="input_total" type="text" class="form-control" readonly value="$0.00">
-        </div>
-        <div class="col-md-3 d-flex align-items-end">
-            <button class="btn btn-primary w-100" type="submit">Emitir Factura</button>
-        </div>
+        <div class="collapse" id="formCollapse">
+            <div class="card-body">
+                <form id="formFactura" class="row g-3">
+                    <input type="hidden" name="accion" value="emitir_factura">
+                    <div class="col-md-3">
+                        <label for="select_doc" class="form-label fw-semibold">Docente</label>
+                        <select name="id_docente" id="select_doc" class="form-select" required>
+                            <option value="">Seleccione docente</option>
+                            <?php while ($d = $docentes->fetch_assoc()): ?>
+                            <option value="<?= $d['id_docente'] ?>"><?= htmlspecialchars($d['nombre']) ?></option>
+                            <?php endwhile; ?>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="select_modo" class="form-label fw-semibold">Modo de pago</label>
+                        <select name="modo" id="select_modo" class="form-select">
+                            <option value="inicial">50% Inicial</option>
+                            <option value="final" selected>50% Final</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="input_total" class="form-label fw-semibold">Total a facturar</label>
+                        <input id="input_total" type="text" class="form-control" readonly value="$0.00">
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end">
+                        <button class="btn btn-primary w-100 fw-semibold" type="submit">Emitir Factura</button>
+                    </div>
 
-        <div class="col-12">
-            <table class="table table-striped table-bordered d-none" id="tabla_liq">
-                <thead class="table-dark">
-                    <tr>
-                        <th><input id="chk_all" type="checkbox"></th>
-                        <th>Unidad</th>
-                        <th>Grupo</th>
-                        <th>Cohorte</th>
-                        <th>Pendiente</th>
-                        <th>Observación</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
+                    <div class="col-12">
+                        <table class="table table-striped table-bordered d-none mt-3" id="tabla_liq">
+                            <thead class="table-dark text-center">
+                                <tr>
+                                    <th style="width: 40px;"><input id="chk_all" type="checkbox"></th>
+                                    <th>Unidad</th>
+                                    <th>Grupo</th>
+                                    <th>Cohorte</th>
+                                    <th class="text-end">Pendiente</th>
+                                    <th>Observación</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </form>
+            </div>
         </div>
-    </form>
+    </div>
 
-    <h3>Facturas Emitidas</h3>
-    <input type="text" id="search" placeholder="Buscar docente..." class="form-control mb-2">
-    <table class="table table-bordered" id="tabla_facturas">
-        <thead class="table-dark">
-            <tr>
-                <th>#</th>
-                <th>Docente</th>
-                <th>Fecha</th>
-                <th>Total</th>
-                <th>Acciones</th>
-            </tr>
-        </thead>
-        <tbody id="body_facturas">
-            <?php $i = 1; ?>
-            <?php while($f = $facturas->fetch_assoc()): ?>
-            <tr>
-                <td><?= $i++ ?></td>
-                <td><?=htmlspecialchars($f['docente_nombre'])?></td>
-                <td><?= $f['fecha'] ?></td>
-                <td>$<?= number_format($f['total_pago'],2) ?></td>
-                <td>
-                    <a href="vista_factura.php?id=<?=$f['id_factura']?>" target="_blank"
-                        class="btn btn-sm btn-info">Ver/Descargar</a>
-                    <button type="button" data-id="<?=$f['id_factura']?>" class="btn btn-sm btn-secondary btn-imprimir">Imprimir</button>
-                </td>
-            </tr>
-            <?php endwhile; ?>
-        </tbody>
-    </table>
-
-    <nav aria-label="Facturas nav">
-        <ul class="pagination justify-content-center mt-3" id="pagination"></ul>
-    </nav>
+    <div class="card shadow-sm border-0 rounded-4 mt-4">
+        <div class="card-body">
+            <h5 class="mb-3">Facturas Emitidas</h5>
+            <input type="text" id="search" placeholder="Buscar docente..." class="form-control mb-3 shadow-sm"
+                autocomplete="off">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover align-middle rounded-4 overflow-hidden"
+                    id="tabla_facturas">
+                    <thead class="table-dark text-center">
+                        <tr>
+                            <th style="width: 50px;">#</th>
+                            <th>Docente</th>
+                            <th>Fecha</th>
+                            <th class="text-end">Total</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="body_facturas">
+                        <?php $i = 1; ?>
+                        <?php while ($f = $facturas->fetch_assoc()): ?>
+                        <tr>
+                            <td class="text-center"><?= $i++ ?></td>
+                            <td><?= htmlspecialchars($f['docente_nombre']) ?></td>
+                            <td class="text-center"><?= $f['fecha'] ?></td>
+                            <td class="text-end">$<?= number_format($f['total_pago'], 2) ?></td>
+                            <td class="text-center">
+                                <a href="vista_factura.php?id=<?= $f['id_factura'] ?>" target="_blank"
+                                    class="btn btn-primary btn-sm fw-semibold me-2">Ver/Descargar</a>
+                                <button type="button" data-id="<?= $f['id_factura'] ?>"
+                                    class="btn btn-secondary btn-sm fw-semibold btn-imprimir">Imprimir
+                                </button>
+                            </td>
+                        </tr>
+                        <?php endwhile; ?>
+                    </tbody>
+                </table>
+            </div>
+            <nav aria-label="Facturas nav">
+                <ul class="pagination justify-content-center mt-3" id="pagination"></ul>
+            </nav>
+        </div>
+    </div>
 </div>
 
 <!-- SweetAlert2 -->
@@ -164,6 +188,7 @@ document.addEventListener('DOMContentLoaded', () => {
         pagination = document.getElementById('pagination'),
         search = document.getElementById('search');
 
+    // Función para actualizar total seleccionado
     function updateTotal() {
         let sum = 0;
         document.querySelectorAll('#tabla_liq input[name="seleccionados[]"]:checked').forEach(cb => {
@@ -172,6 +197,7 @@ document.addEventListener('DOMContentLoaded', () => {
         inputTotal.value = `$${sum.toFixed(2)}`;
     }
 
+    // Paginación para tabla facturas
     function paginate() {
         const rows = Array.from(bodyFact.querySelectorAll('tr')).filter(r => r.style.display !== 'none');
         const perPage = 10;
@@ -236,6 +262,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     paginate();
 
+    // Buscador facturas
     search.addEventListener('input', () => {
         const term = search.value.toLowerCase();
         Array.from(bodyFact.rows).forEach(r => {
@@ -244,6 +271,7 @@ document.addEventListener('DOMContentLoaded', () => {
         paginate();
     });
 
+    // Cambiar docente: cargar liquidaciones pendientes
     selectDoc.addEventListener('change', () => {
         tbodyLiq.innerHTML = '';
         tablaLiq.classList.add('d-none');
@@ -256,9 +284,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!data.length) return;
                 data.forEach(l => {
                     const tr = document.createElement('tr');
-                    tr.innerHTML = `<td><input type="checkbox" name="seleccionados[]" value="${l.id_liquidacion}"></td>
-                            <td>${l.unidad}</td><td>${l.grupo}</td><td>${l.cohorte}</td>
-                            <td>$${parseFloat(l.pendiente).toFixed(2)}</td><td>${l.observacion||''}</td>`;
+                    tr.innerHTML =
+                        `<td class="text-center"><input type="checkbox" name="seleccionados[]" value="${l.id_liquidacion}"></td>
+                            <td>${l.unidad}</td><td class="text-center">${l.grupo}</td><td class="text-center">${l.cohorte}</td>
+                            <td class="text-end">$${parseFloat(l.pendiente).toFixed(2)}</td><td>${l.observacion||''}</td>`;
                     tbodyLiq.appendChild(tr);
                 });
                 tablaLiq.classList.remove('d-none');
@@ -266,7 +295,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const anyIni = data.some(l => l.pago_inicial_pagado == 0);
                 selectModo.querySelector('option[value="inicial"]').disabled = !anyIni;
                 if (!anyIni) selectModo.value = 'final';
-                Array.from(tbodyLiq.querySelectorAll('input[name="seleccionados[]"]')).forEach(cb => {
+                Array.from(tbodyLiq.querySelectorAll('input[name="seleccionados[]"]')).forEach(
+                cb => {
                     const l = data.find(x => x.id_liquidacion == cb.value);
                     if (l.pago_inicial_pagado) {
                         cb.checked = false;
@@ -277,14 +307,18 @@ document.addEventListener('DOMContentLoaded', () => {
             }).catch(() => Swal.fire('Error', 'No se cargaron liquidaciones', 'error'));
     });
 
+    // Seleccionar/deseleccionar todos
     chkAll.addEventListener('change', () => {
-        document.querySelectorAll('#tabla_liq input[name="seleccionados[]"]').forEach(cb => cb.checked = chkAll.checked);
+        document.querySelectorAll('#tabla_liq input[name="seleccionados[]"]').forEach(cb => cb.checked =
+            chkAll.checked);
         updateTotal();
     });
 
+    // Submit formulario factura
     document.getElementById('formFactura').addEventListener('submit', e => {
         e.preventDefault();
-        document.querySelectorAll('#tabla_liq input[name="seleccionados[]"]').forEach(cb => cb.disabled = false);
+        document.querySelectorAll('#tabla_liq input[name="seleccionados[]"]').forEach(cb => cb
+            .disabled = false);
         fetch('facturas.php', {
                 method: 'POST',
                 body: new FormData(e.target)
@@ -299,10 +333,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     }).then(() => {
                         const tr = document.createElement('tr');
                         tr.innerHTML =
-                            `<td>—</td><td>${data.docente}</td><td>${new Date().toISOString().slice(0,10)}</td>
-                <td>$${data.total}</td><td>
-                <a href="vista_factura.php?id=${data.id_factura}" target="_blank" class="btn btn-sm btn-info">Ver</a>
-                <button type="button" data-id="${data.id_factura}" class="btn btn-sm btn-secondary btn-imprimir">Imprimir</button></td>`;
+                            `<td class="text-center">${bodyFact.children.length + 1}</td>
+                         <td>${data.docente}</td>
+                         <td class="text-center">${new Date().toISOString().slice(0,10)}</td>
+                         <td class="text-end">$${data.total}</td>
+                         <td class="text-center">
+                            <a href="vista_factura.php?id=${data.id_factura}" target="_blank" class="btn btn-primary btn-sm fw-semibold me-2">Ver/Descargar</a>
+                            <button type="button" data-id="${data.id_factura}" class="btn btn-secondary btn-sm fw-semibold btn-imprimir">Imprimir</button>
+                         </td>`;
                         bodyFact.prepend(tr);
                         paginate();
                     });
@@ -312,12 +350,15 @@ document.addEventListener('DOMContentLoaded', () => {
             }).catch(() => Swal.fire('Error', 'Fallo en la solicitud', 'error'));
     });
 
-    // Evento para imprimir directamente sin abrir nueva ventana
+    // Imprimir sin abrir nueva pestaña
     document.addEventListener('click', (e) => {
         if (e.target.classList.contains('btn-imprimir')) {
             const facturaId = e.target.dataset.id;
+            // Se redirige a la vista con parámetro para que abra diálogo imprimir
             window.location.href = `vista_factura.php?id=${facturaId}&print=1`;
         }
     });
 });
 </script>
+
+<?php include '../includes/footer.php'; ?>

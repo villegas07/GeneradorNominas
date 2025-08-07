@@ -1,0 +1,125 @@
+<?php
+require('../fpdf/fpdf.php');
+require('../config/db.php');
+require('../utils/numero_a_letras.php'); // Conversión de números a letras
+
+// Validar el parámetro recibido
+if (isset($_GET['id_factura'])) {
+    $id_factura = intval($_GET['id_factura']);
+} elseif (isset($_GET['id'])) {
+    $id_factura = intval($_GET['id']);
+} else {
+    die("Error: No se proporcionó el ID de la factura.");
+}
+
+// Consultar datos de la factura
+$stmt = $conn->prepare("
+    SELECT f.*, d.nombre AS docente_nombre, d.identificacion, df.porcentaje_pago, df.descripcion, df.monto, p.codigo AS cohorte
+    FROM factura f
+    JOIN docente d ON f.id_docente = d.id_docente
+    JOIN detalle_factura df ON df.id_factura = f.id_factura
+    JOIN periodo p ON df.id_periodo = p.id_periodo
+    WHERE f.id_factura = ?
+");
+$stmt->bind_param("i", $id_factura);
+$stmt->execute();
+$result = $stmt->get_result();
+$factura = $result->fetch_assoc();
+
+if (!$factura) {
+    die('Factura no encontrada');
+}
+
+$metodo_pago = isset($factura['metodo_pago']) ? $factura['metodo_pago'] : 'Efectivo';
+
+class PDF extends FPDF
+{
+    function Header()
+    {
+        $this->Image('../assets/images/logo.png', 10, 10, 40);
+        $this->SetFont('Arial', 'B', 18);
+        $this->SetXY(150, 20);
+        $this->Cell(50, 10, utf8_decode('Recibo de Pago'), 0, 1, 'C');
+        $this->Ln(15);
+    }
+}
+
+$pdf = new PDF();
+$pdf->AddPage();
+$pdf->SetFont('Arial', '', 11);
+
+// Nit
+$pdf->SetXY(10, 50);
+$pdf->SetFont('Arial', '', 10);
+$pdf->Cell(60, 6, utf8_decode('Nit: 9012769169'), 0, 1);
+
+// Tabla Año, Mes, Día y Total
+$pdf->SetXY(120, 45);
+$pdf->SetFont('Arial', 'B', 10);
+$pdf->Cell(17, 7, utf8_decode('AÑO'), 1, 0, 'C');
+$pdf->Cell(17, 7, utf8_decode('MES'), 1, 0, 'C');
+$pdf->Cell(17, 7, utf8_decode('DÍA'), 1, 0, 'C');
+$pdf->Cell(30, 7, utf8_decode('TOTAL A PAGAR'), 1, 1, 'C');
+
+$pdf->SetX(120);
+$pdf->SetFont('Arial', '', 10);
+$pdf->Cell(17, 7, date('Y', strtotime($factura['fecha'])), 1, 0, 'C');
+$pdf->Cell(17, 7, date('m', strtotime($factura['fecha'])), 1, 0, 'C');
+$pdf->Cell(17, 7, date('d', strtotime($factura['fecha'])), 1, 0, 'C');
+$pdf->Cell(30, 7, '$' . number_format($factura['total_pago'], 2), 1, 1, 'C');
+
+// PÁGUESE A LA ORDEN DE
+$pdf->Ln(5);
+$pdf->SetFont('Arial', '', 10);
+$pdf->Cell(50, 7, utf8_decode('PÁGUESE A LA ORDEN DE:'), 1, 0);
+$pdf->Cell(140, 7, utf8_decode($factura['docente_nombre']), 1, 1);
+
+// LA SUMA DE
+$pdf->Cell(50, 7, utf8_decode('LA SUMA DE:'), 1, 0);
+$pdf->Cell(140, 7, utf8_decode(numeroALetras($factura['total_pago']) . ' pesos'), 1, 1);
+
+// POR CONCEPTO DE
+$pdf->Cell(50, 7, utf8_decode('POR CONCEPTO DE:'), 1, 0);
+$pdf->Cell(140, 7, utf8_decode('HONORARIOS PROFESIONALES CONVENIO UREL POLINORTE'), 1, 1);
+
+// Tabla Concepto y Monto
+$pdf->Ln(5);
+$pdf->SetFont('Arial', 'B', 10);
+$pdf->Cell(95, 7, utf8_decode('CONCEPTO'), 1, 0, 'C');
+$pdf->Cell(95, 7, utf8_decode('MONTO'), 1, 1, 'C');
+
+$pdf->SetFont('Arial', '', 10);
+$pdf->Cell(95, 7, utf8_decode('IPC'), 1, 0, 'C');
+$pdf->Cell(95, 7, '', 1, 1, 'C');
+
+$pdf->Cell(95, 7, utf8_decode($factura['porcentaje_pago'] . ' de ' . $factura['descripcion']), 1, 0);
+$pdf->Cell(95, 7, '$' . number_format($factura['monto'], 2) . ' PESOS', 1, 1, 'R');
+
+// MÉTODO DE PAGO alineado a la derecha
+$pdf->Ln(5);
+$pdf->SetXY(115, $pdf->GetY());
+$pdf->SetFont('Arial', 'B', 10);
+$pdf->Cell(45, 10, utf8_decode('MÉTODO DE PAGO:'), 1, 0, 'L');
+$pdf->SetFont('Arial', '', 10);
+$pdf->Cell(40, 10, utf8_decode($metodo_pago), 1, 1, 'L');
+
+// TOTAL alineado a la derecha
+$pdf->SetXY(115, $pdf->GetY());
+$pdf->SetFont('Arial', 'B', 10);
+$pdf->Cell(45, 10, utf8_decode('TOTAL:'), 1, 0, 'L');
+$pdf->Cell(40, 10, '$' . number_format($factura['total_pago'], 2), 1, 1, 'R');
+
+// Firma con línea sobre el texto
+$pdf->Ln(20);
+$y_firma = $pdf->GetY();
+$pdf->Line(20, $y_firma, 100, $y_firma); // Línea firma
+$pdf->Line(115, $y_firma, 195, $y_firma); // Línea C.I.
+
+$pdf->SetFont('Arial', '', 10);
+$pdf->SetXY(20, $y_firma + 2);
+$pdf->Cell(80, 7, utf8_decode('Firma del Beneficiario'), 0, 0, 'C');
+$pdf->SetXY(115, $y_firma + 2);
+$pdf->Cell(80, 7, utf8_decode('C.I.: ' . $factura['identificacion']), 0, 1, 'C');
+
+$pdf->Output();
+?>

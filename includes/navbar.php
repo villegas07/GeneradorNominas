@@ -34,7 +34,7 @@
           </a>
           <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
             <li><a class="dropdown-item" href="gestionar_usuarios.php">Gestión de usuarios</a></li>
-            <li><a class="dropdown-item" href="ajustes.php">Ajustes</a></li>
+            <li><a class="dropdown-item" href="configuracion.php">Configuración de Factura</a></li>
             <li>
               <form action="/nomina/logout.php" method="POST" class="d-inline">
                 <button type="submit" class="dropdown-item text-danger"><a href="logout.php" class="dropdown-item text-danger">Cerrar sesión</a>

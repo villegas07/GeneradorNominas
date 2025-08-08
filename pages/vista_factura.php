@@ -41,11 +41,26 @@ $detalles = $detalle_result->fetch_all(MYSQLI_ASSOC);
 
 $metodo_pago = !empty($factura['metodo_pago']) ? $factura['metodo_pago'] : 'Efectivo';
 
+// Leer la configuración
+$configFile = '../config/config.json';
+$config = json_decode(file_get_contents($configFile), true);
+$logoPath = '../' . $config['logo_path'];
+$nit = $config['nit'];
+
 class PDF extends FPDF
 {
+    var $logoPath;
+    function __construct($orientation='P', $unit='mm', $size='A4', $logoPath)
+    {
+        parent::__construct($orientation, $unit, $size);
+        $this->logoPath = $logoPath;
+    }
+
     function Header()
     {
-        $this->Image('../assets/images/logo.png', 10, 10, 40);
+        if (file_exists($this->logoPath)) {
+            $this->Image($this->logoPath, 10, 10, 40);
+        }
         $this->SetFont('Arial', 'B', 18);
         $this->SetXY(150, 20);
         $this->Cell(50, 10, utf8_decode('Recibo de Pago'), 0, 1, 'C');
@@ -53,14 +68,14 @@ class PDF extends FPDF
     }
 }
 
-$pdf = new PDF();
+$pdf = new PDF('P', 'mm', 'A4', $logoPath);
 $pdf->AddPage();
 $pdf->SetFont('Arial', '', 11);
 
 // Nit
 $pdf->SetXY(10, 50);
 $pdf->SetFont('Arial', '', 10);
-$pdf->Cell(60, 6, utf8_decode('Nit: 9012769169'), 0, 1);
+$pdf->Cell(60, 6, utf8_decode('Nit: ' . $nit), 0, 1);
 
 // Tabla Año, Mes, Día y Total
 $pdf->SetXY(120, 45);

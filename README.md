@@ -72,7 +72,7 @@ http://localhost/Nomina/index.php
 - ✅ Módulos principales implementados
 - 🔄 Gestión de usuarios en desarrollo continuo
 ---
-***👨‍💻 Autor***
+**👨‍💻 Autor**
 Brayan Villegas Corrales
 Desarrollador Full Stack | Enfocado en soluciones educativas y administrativas.
 - GitHub: @villegas07

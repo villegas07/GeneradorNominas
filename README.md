@@ -65,13 +65,12 @@ http://localhost/Nomina/index.php
 6. **Credenciales por defecto**
 - Usuario: admin
 - Contraseña: admin123
-🔐 Este usuario tiene privilegios de super administrador y no puede ser eliminado o editado desde el sistema.
 ---
+- 🔐 Este usuario tiene privilegios de super administrador y no puede ser eliminado o editado desde el sistema.
 ---
 ***🚧 Estado del proyecto***
 - ✅ Módulos principales implementados
 - 🔄 Gestión de usuarios en desarrollo continuo
----
 ---
 ***👨‍💻 Autor***
 Brayan Villegas Corrales
@@ -79,12 +78,10 @@ Desarrollador Full Stack | Enfocado en soluciones educativas y administrativas.
 - GitHub: @villegas07
 - Email: brayanvillegas0719@gmail.com
 ---
----
 ***📄 Licencia***
 Este proyecto es propiedad de Brayan Villegas Corrales y está protegido por derechos de autor.
 Licencia de uso restringido
 Este software ha sido desarrollado con fines académicos y administrativos. No está autorizado su uso, distribución, copia, modificación ni redistribución sin el consentimiento explícito y por escrito del autor.
----
 ---
 Queda estrictamente prohibido:
 - Usar el código fuente en otros proyectos.

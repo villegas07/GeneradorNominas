@@ -1,6 +1,6 @@
-# 🧾 Sistema de Nómina Académica
+## 🧾 Sistema de Nómina Académica
 
-Este proyecto es un sistema de nómina desarrollado en PHP con Bootstrap, diseñado para la gestión académica y financiera de docentes en una institución educativa. Permite registrar docentes, asignarles unidades curriculares, gestionar liquidaciones, pagos, sedes y usuarios del sistema.
+- Este proyecto es un sistema de nómina desarrollado en PHP con Bootstrap, diseñado para la gestión académica y financiera de docentes en una institución educativa. Permite registrar docentes, asignarles unidades curriculares, gestionar liquidaciones, pagos, sedes y usuarios del sistema.
 
 ## 📌 Características principales
 

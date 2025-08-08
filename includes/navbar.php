@@ -20,6 +20,7 @@
         <li class="nav-item"><a class="nav-link" href="/nomina/pages/docentes.php">👩‍🏫 Docentes</a></li>
         <li class="nav-item"><a class="nav-link" href="/nomina/pages/liquidacion.php">🧾 Liquidaciones</a></li>
         <li class="nav-item"><a class="nav-link" href="/nomina/pages/unid_curricular.php">📘 Unidades Curriculares</a></li>
+        <li class="nav-item"><a class="nav-link" href="/nomina/pages/catalogo_unidades.php">📚 Catálogo de Unidades</a></li>
         <li class="nav-item"><a class="nav-link" href="/nomina/pages/asignar_unidad.php">📝 Asignar Unidad</a></li>
         <li class="nav-item"><a class="nav-link" href="/nomina/pages/sedes.php">🏫 Sedes</a></li>
         <li class="nav-item"><a class="nav-link" href="/nomina/pages/facturas.php">💼 Facturas</a></li>

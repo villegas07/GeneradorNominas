@@ -54,6 +54,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
         $stmt->close();
         exit;
     }
+$mensaje = '';
+$edit_unidad = null;
+
+// Manejar POST para Guardar (Crear o Actualizar)
+if (isset($_POST['guardar'])) {
+    $id = $_POST['id'] ?? null;
+    $nombre = $conn->real_escape_string($_POST['nombre']);
+    $descripcion = $conn->real_escape_string($_POST['descripcion']);
+    $valor_base = floatval($_POST['valor_base']);
+
+    if ($id) { // Actualizar
+        $stmt = $conn->prepare("UPDATE catalogo_unidades SET nombre = ?, descripcion = ?, valor_base = ? WHERE id = ?");
+        $stmt->bind_param("ssdi", $nombre, $descripcion, $valor_base, $id);
+        if ($stmt->execute()) {
+            $mensaje = "Unidad actualizada exitosamente.";
+        } else {
+            $mensaje = "Error al actualizar la unidad: " . $stmt->error;
+        }
+    } else { // Crear
+        $stmt = $conn->prepare("INSERT INTO catalogo_unidades (nombre, descripcion, valor_base) VALUES (?, ?, ?)");
+        $stmt->bind_param("ssd", $nombre, $descripcion, $valor_base);
+        if ($stmt->execute()) {
+            $mensaje = "Unidad creada exitosamente.";
+        } else {
+            $mensaje = "Error al crear la unidad: " . $stmt->error;
+        }
+    }
+    $stmt->close();
+}
+
+// Manejar GET para Eliminar
+if (isset($_GET['delete'])) {
+    $id = intval($_GET['delete']);
+    $stmt = $conn->prepare("DELETE FROM catalogo_unidades WHERE id = ?");
+    $stmt->bind_param("i", $id);
+    if ($stmt->execute()) {
+        $mensaje = "Unidad eliminada exitosamente.";
+    } else {
+        $mensaje = "Error al eliminar la unidad: " . $stmt->error;
+    }
+    $stmt->close();
+
 }
 
 // Manejar GET para Editar (cargar datos en el formulario)
@@ -76,13 +118,25 @@ include '../includes/navbar.php';
 
 <div class="container mt-5">
 
+
+    <?php if ($mensaje): ?>
+    <div class="alert alert-info alert-dismissible fade show" role="alert">
+        <?= htmlspecialchars($mensaje) ?>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    <?php endif; ?>
+
     <!-- Formulario para Crear/Editar -->
     <div class="card shadow-sm border-0 rounded-4 mb-4">
         <div class="card-header bg-primary text-white rounded-top-4">
             <h5 class="mb-0"><?= $edit_unidad ? 'Editar' : 'Añadir Nueva' ?> Unidad al Catálogo</h5>
         </div>
         <div class="card-body">
+
             <form id="form-catalogo" class="row g-3">
+
+            <form action="catalogo_unidades.php" method="POST" class="row g-3">
+
                 <input type="hidden" name="id" value="<?= $edit_unidad['id'] ?? '' ?>">
                 <div class="col-md-6">
                     <label for="nombre" class="form-label fw-semibold">Nombre de la Unidad</label>
@@ -129,7 +183,11 @@ include '../includes/navbar.php';
                                 <td class="text-end">$<?= number_format($unidad['valor_base'], 2) ?></td>
                                 <td class="text-center">
                                     <a href="catalogo_unidades.php?edit=<?= $unidad['id'] ?>" class="btn btn-warning btn-sm">Editar</a>
+
                                     <button type="button" class="btn btn-danger btn-sm" onclick="eliminarUnidad(<?= $unidad['id'] ?>)">Eliminar</button>
+
+                                    <a href="catalogo_unidades.php?delete=<?= $unidad['id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('¿Estás seguro de que deseas eliminar esta unidad?');">Eliminar</a>
+
                                 </td>
                             </tr>
                             <?php endwhile; ?>
@@ -144,6 +202,7 @@ include '../includes/navbar.php';
         </div>
     </div>
 </div>
+
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>

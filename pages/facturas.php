@@ -135,7 +135,7 @@ $facturas = $conn->query("
                                     <th>Unidad</th>
                                     <th>Grupo</th>
                                     <th>Cohorte</th>
-                                    <th class="text-end">Pendiente</th>
+                                    <th class="text-end">Monto a Pagar</th>
                                     <th>Observación</th>
                                 </tr>
                             </thead>
@@ -207,6 +207,7 @@ document.addEventListener('DOMContentLoaded', () => {
         search = document.getElementById('search');
 
     let liquidacionesData = [];
+    let isPostPaymentReload = false;
 
     function formatCurrency(num) {
         return `$${parseFloat(num).toFixed(2)}`;
@@ -245,33 +246,54 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function updateTotal() {
-        let sum = 0;
-        const selected = getSelectedLiquidaciones();
+    function updateInvoiceDetails() {
+        let totalSum = 0;
+        const selectedLiquidaciones = getSelectedLiquidaciones();
         const modo = selectModo.value;
 
-        selected.forEach(l => {
+        // Update the amount for each row in the table
+        tbodyLiq.querySelectorAll('tr').forEach(tr => {
+            const liqId = parseInt(tr.querySelector('input[type="checkbox"]').value);
+            const liq = liquidacionesData.find(l => parseInt(l.id_liquidacion) === liqId);
+            if (!liq) return;
+
+            const primerPago = parseFloat(liq.primer_pago);
+            const segundoPago = parseFloat(liq.segundo_pago);
+            let amountForThisRow = 0;
+
+            if (modo === 'inicial') {
+                amountForThisRow = primerPago;
+            } else if (modo === 'final') {
+                amountForThisRow = segundoPago;
+            } else if (modo === 'completo') {
+                amountForThisRow = primerPago + segundoPago;
+            }
+            tr.cells[4].textContent = formatCurrency(amountForThisRow);
+        });
+
+        // Calculate total for selected items
+        selectedLiquidaciones.forEach(l => {
             const primerPago = parseFloat(l.primer_pago);
             const segundoPago = parseFloat(l.segundo_pago);
 
             if (modo === 'inicial') {
-                sum += primerPago;
+                totalSum += primerPago;
             } else if (modo === 'final') {
-                sum += segundoPago;
+                totalSum += segundoPago;
             } else if (modo === 'completo') {
-                sum += primerPago + segundoPago;
+                totalSum += primerPago + segundoPago;
             }
         });
 
-        inputTotal.value = formatCurrency(sum);
+        inputTotal.value = formatCurrency(totalSum);
     }
 
     function handleSelectionChange() {
         updatePaymentModeOptions();
-        updateTotal();
+        updateInvoiceDetails();
     }
 
-    selectModo.addEventListener('change', updateTotal);
+    selectModo.addEventListener('change', updateInvoiceDetails);
     tbodyLiq.addEventListener('change', e => {
         if (e.target.type === 'checkbox') {
             handleSelectionChange();
@@ -280,7 +302,6 @@ document.addEventListener('DOMContentLoaded', () => {
     chkAll.addEventListener('change', () => {
         const isChecked = chkAll.checked;
         tbodyLiq.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-            // No seleccionar los que son para pago final si el chkAll está activo
             const liqId = parseInt(cb.value);
             const liq = liquidacionesData.find(l => parseInt(l.id_liquidacion) === liqId);
             if (liq && liq.pago_inicial_pagado == 1) {
@@ -302,7 +323,9 @@ document.addEventListener('DOMContentLoaded', () => {
         fetch(`get_liquidaciones_docente.php?id_docente=${selectDoc.value}`)
             .then(r => r.json()).then(data => {
                 if (!data.length) {
-                    Swal.fire('Información', 'El docente no tiene liquidaciones pendientes.', 'info');
+                    if (!isPostPaymentReload) {
+                        Swal.fire('Información', 'El docente no tiene liquidaciones pendientes.', 'info');
+                    }
                     return;
                 };
                 liquidacionesData = data;
@@ -310,12 +333,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 data.forEach(l => {
                     const tr = document.createElement('tr');
                     const isFinalPayment = l.pago_inicial_pagado == 1;
-                    const pendiente = isFinalPayment ? l.segundo_pago : l.primer_pago;
-
                     tr.innerHTML =
                         `<td class="text-center"><input type="checkbox" name="seleccionados[]" value="${l.id_liquidacion}"></td>
                             <td>${l.unidad}</td><td class="text-center">${l.grupo}</td><td class="text-center">${l.cohorte}</td>
-                            <td class="text-end">${formatCurrency(pendiente)}</td><td>${l.observacion||''}</td>`;
+                            <td class="text-end"></td>
+                            <td>${l.observacion||''}</td>`;
 
                     if (isFinalPayment) {
                         tr.style.opacity = '0.6';
@@ -326,7 +348,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 tablaLiq.classList.remove('d-none');
                 chkAll.checked = false;
                 handleSelectionChange();
-            }).catch(() => Swal.fire('Error', 'No se pudieron cargar las liquidaciones', 'error'));
+            }).catch(() => Swal.fire('Error', 'No se pudieron cargar las liquidaciones', 'error'))
+            .finally(() => {
+                isPostPaymentReload = false;
+            });
     });
 
     document.getElementById('formFactura').addEventListener('submit', e => {
@@ -347,7 +372,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         text: `Factura #${data.id_factura} emitida para ${data.docente} por ${data.total}`,
                         confirmButtonText: 'Aceptar'
                     }).then(() => {
-                         // Recargar las liquidaciones para el docente actual
+                        isPostPaymentReload = true;
                         selectDoc.dispatchEvent(new Event('change'));
                     });
                 } else {

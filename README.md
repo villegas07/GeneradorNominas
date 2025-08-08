@@ -65,14 +65,12 @@ http://localhost/Nomina/index.php
 6. **Credenciales por defecto**
 - Usuario: admin
 - Contraseña: admin123
----
----
 🔐 Este usuario tiene privilegios de super administrador y no puede ser eliminado o editado desde el sistema.
 ---
 ---
 ***🚧 Estado del proyecto***
-✅ Módulos principales implementados
-🔄 Gestión de usuarios en desarrollo continuo
+- ✅ Módulos principales implementados
+- 🔄 Gestión de usuarios en desarrollo continuo
 ---
 ---
 ***👨‍💻 Autor***

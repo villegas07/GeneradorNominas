@@ -68,7 +68,7 @@ http://localhost/Nomina/index.php
 ---
 - 🔐 Este usuario tiene privilegios de super administrador y no puede ser eliminado o editado desde el sistema.
 ---
-***🚧 Estado del proyecto***
+**🚧 Estado del proyecto**
 - ✅ Módulos principales implementados
 - 🔄 Gestión de usuarios en desarrollo continuo
 ---
@@ -78,8 +78,8 @@ Desarrollador Full Stack | Enfocado en soluciones educativas y administrativas.
 - GitHub: @villegas07
 - Email: brayanvillegas0719@gmail.com
 ---
-***📄 Licencia***
-Este proyecto es propiedad de Brayan Villegas Corrales y está protegido por derechos de autor.
+**📄 Licencia**
+- Este proyecto es propiedad de Brayan Villegas Corrales y está protegido por derechos de autor.
 Licencia de uso restringido
 Este software ha sido desarrollado con fines académicos y administrativos. No está autorizado su uso, distribución, copia, modificación ni redistribución sin el consentimiento explícito y por escrito del autor.
 ---

@@ -42,7 +42,6 @@ git clone https://github.com/tu-usuario/sistema-nomina-academica.git
 C:\xampp\htdocs\
 ```
 ---
----
 3. **Importar la base de datos**
 - Crear una base de datos en phpMyAdmin (por ejemplo: nomina_academica).
 - Importar el archivo nomina_academica.sql incluido en la carpeta /database (debes crearlo si aún no lo has exportado).

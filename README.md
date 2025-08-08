@@ -74,7 +74,7 @@ http://localhost/Nomina/index.php
 ---
 **👨‍💻 Autor**
 Brayan Villegas Corrales
-Desarrollador Full Stack | Enfocado en soluciones educativas y administrativas.
+- Desarrollador Full Stack | Enfocado en soluciones educativas y administrativas.
 - GitHub: @villegas07
 - Email: brayanvillegas0719@gmail.com
 ---

@@ -33,7 +33,7 @@
 1. **Clonar el repositorio**
 
 ```bash
-git clone https://github.com/tu-usuario/sistema-nomina-academica.git
+git clone https://github.com/villegas07/GeneradorNominas
 ```
 ---
 2. **Ubicación del proyecto (XAMPP)**

@@ -8,7 +8,8 @@ $stmt = $conn->prepare("
     u.nombre AS unidad,
     u.grupo,
     p.codigo AS cohorte,
-    CASE WHEN l.pago_inicial_pagado = 0 THEN l.primer_pago ELSE l.segundo_pago END AS pendiente,
+    l.primer_pago,
+    l.segundo_pago,
     l.observacion,
     l.pago_inicial_pagado
   FROM liquidacion l

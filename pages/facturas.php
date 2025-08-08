@@ -26,16 +26,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['accion'] ?? '') === 'emiti
             if (!$r) continue;
             $pendIni = !$r['pago_inicial_pagado'] ? $r['primer_pago'] : 0;
             $pendFin = $r['segundo_pago'];
-            $monto = ($modo === 'inicial' && $pendIni > 0) ? $pendIni : $pendFin;
+
+            $monto = 0;
+            $porcentaje_pago = '';
+
+            if ($modo === 'inicial' && $pendIni > 0) {
+                $monto = $pendIni;
+                $porcentaje_pago = '50% Inicial';
+            } elseif ($modo === 'final' && $pendFin > 0) {
+                $monto = $pendFin;
+                $porcentaje_pago = '50% Final';
+            } elseif ($modo === 'completo' && ($pendIni > 0 || $pendFin > 0)) {
+                $monto = $pendIni + $pendFin;
+                $porcentaje_pago = '100% Completo';
+            }
+
             if ($monto <= 0) continue;
             $total += $monto;
             $desc = "{$r['unidad']} (Grupo {$r['grupo']} - {$r['cohorte']})";
             $conn->query("INSERT INTO detalle_factura (id_factura, porcentaje_pago, id_periodo, tipo_concepto, descripcion, monto, observacion)
-                VALUES ($id_fact, '50%', {$r['id_periodo']}, 'Curso', '" . addslashes($desc) . "', $monto, '" . addslashes($r['observacion']) . "')");
+                VALUES ($id_fact, '$porcentaje_pago', {$r['id_periodo']}, 'Curso', '" . addslashes($desc) . "', $monto, '" . addslashes($r['observacion']) . "')");
+
             if ($modo === 'inicial') {
-                $conn->query("UPDATE liquidacion SET pago_inicial_pagado = 1 WHERE id_liquidacion=" . intval($lid));
+                $conn->query("UPDATE liquidacion SET pago_inicial_pagado = 1, primer_pago = 0 WHERE id_liquidacion=" . intval($lid));
             } elseif ($modo === 'final') {
                 $conn->query("UPDATE liquidacion SET segundo_pago = 0 WHERE id_liquidacion=" . intval($lid));
+            } elseif ($modo === 'completo') {
+                $conn->query("UPDATE liquidacion SET pago_inicial_pagado = 1, primer_pago = 0, segundo_pago = 0 WHERE id_liquidacion=" . intval($lid));
             }
         }
         $conn->query("UPDATE factura SET total_pago = $total WHERE id_factura = $id_fact");
@@ -98,7 +115,8 @@ $facturas = $conn->query("
                         <label for="select_modo" class="form-label fw-semibold">Modo de pago</label>
                         <select name="modo" id="select_modo" class="form-select">
                             <option value="inicial">50% Inicial</option>
-                            <option value="final" selected>50% Final</option>
+                            <option value="final" disabled>50% Final</option>
+                            <option value="completo">100% Completo</option>
                         </select>
                     </div>
                     <div class="col-md-3">
@@ -188,16 +206,157 @@ document.addEventListener('DOMContentLoaded', () => {
         pagination = document.getElementById('pagination'),
         search = document.getElementById('search');
 
-    // Función para actualizar total seleccionado
-    function updateTotal() {
-        let sum = 0;
-        document.querySelectorAll('#tabla_liq input[name="seleccionados[]"]:checked').forEach(cb => {
-            sum += parseFloat(cb.closest('tr').children[4].textContent.replace(/[^0-9.-]+/g, ""));
-        });
-        inputTotal.value = `$${sum.toFixed(2)}`;
+    let liquidacionesData = [];
+
+    function formatCurrency(num) {
+        return `$${parseFloat(num).toFixed(2)}`;
     }
 
-    // Paginación para tabla facturas
+    function getSelectedLiquidaciones() {
+        const selectedIds = Array.from(document.querySelectorAll('#tabla_liq input[name="seleccionados[]"]:checked'))
+            .map(cb => parseInt(cb.value));
+        return liquidacionesData.filter(l => selectedIds.includes(parseInt(l.id_liquidacion)));
+    }
+
+    function updatePaymentModeOptions() {
+        const selected = getSelectedLiquidaciones();
+        const optInicial = selectModo.querySelector('option[value="inicial"]');
+        const optFinal = selectModo.querySelector('option[value="final"]');
+        const optCompleto = selectModo.querySelector('option[value="completo"]');
+
+        if (selected.length === 0) {
+            optInicial.disabled = false;
+            optFinal.disabled = true;
+            optCompleto.disabled = false;
+            selectModo.value = 'inicial';
+            return;
+        }
+
+        const hasPartialPayment = selected.some(l => l.pago_inicial_pagado == 1);
+
+        optInicial.disabled = hasPartialPayment;
+        optCompleto.disabled = hasPartialPayment;
+        optFinal.disabled = !hasPartialPayment;
+
+        if (hasPartialPayment) {
+            selectModo.value = 'final';
+        } else {
+            selectModo.value = 'inicial';
+        }
+    }
+
+    function updateTotal() {
+        let sum = 0;
+        const selected = getSelectedLiquidaciones();
+        const modo = selectModo.value;
+
+        selected.forEach(l => {
+            const primerPago = parseFloat(l.primer_pago);
+            const segundoPago = parseFloat(l.segundo_pago);
+
+            if (modo === 'inicial') {
+                sum += primerPago;
+            } else if (modo === 'final') {
+                sum += segundoPago;
+            } else if (modo === 'completo') {
+                sum += primerPago + segundoPago;
+            }
+        });
+
+        inputTotal.value = formatCurrency(sum);
+    }
+
+    function handleSelectionChange() {
+        updatePaymentModeOptions();
+        updateTotal();
+    }
+
+    selectModo.addEventListener('change', updateTotal);
+    tbodyLiq.addEventListener('change', e => {
+        if (e.target.type === 'checkbox') {
+            handleSelectionChange();
+        }
+    });
+    chkAll.addEventListener('change', () => {
+        const isChecked = chkAll.checked;
+        tbodyLiq.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+            // No seleccionar los que son para pago final si el chkAll está activo
+            const liqId = parseInt(cb.value);
+            const liq = liquidacionesData.find(l => parseInt(l.id_liquidacion) === liqId);
+            if (liq && liq.pago_inicial_pagado == 1) {
+                 cb.checked = false;
+            } else {
+                 cb.checked = isChecked;
+            }
+        });
+        handleSelectionChange();
+    });
+
+    selectDoc.addEventListener('change', () => {
+        tbodyLiq.innerHTML = '';
+        tablaLiq.classList.add('d-none');
+        liquidacionesData = [];
+        handleSelectionChange();
+
+        if (!selectDoc.value) return;
+        fetch(`get_liquidaciones_docente.php?id_docente=${selectDoc.value}`)
+            .then(r => r.json()).then(data => {
+                if (!data.length) {
+                    Swal.fire('Información', 'El docente no tiene liquidaciones pendientes.', 'info');
+                    return;
+                };
+                liquidacionesData = data;
+
+                data.forEach(l => {
+                    const tr = document.createElement('tr');
+                    const isFinalPayment = l.pago_inicial_pagado == 1;
+                    const pendiente = isFinalPayment ? l.segundo_pago : l.primer_pago;
+
+                    tr.innerHTML =
+                        `<td class="text-center"><input type="checkbox" name="seleccionados[]" value="${l.id_liquidacion}"></td>
+                            <td>${l.unidad}</td><td class="text-center">${l.grupo}</td><td class="text-center">${l.cohorte}</td>
+                            <td class="text-end">${formatCurrency(pendiente)}</td><td>${l.observacion||''}</td>`;
+
+                    if (isFinalPayment) {
+                        tr.style.opacity = '0.6';
+                        tr.title = 'Este item corresponde a un segundo pago.';
+                    }
+                    tbodyLiq.appendChild(tr);
+                });
+                tablaLiq.classList.remove('d-none');
+                chkAll.checked = false;
+                handleSelectionChange();
+            }).catch(() => Swal.fire('Error', 'No se pudieron cargar las liquidaciones', 'error'));
+    });
+
+    document.getElementById('formFactura').addEventListener('submit', e => {
+        e.preventDefault();
+        if (getSelectedLiquidaciones().length === 0) {
+            Swal.fire('Error', 'Debe seleccionar al menos una liquidación.', 'error');
+            return;
+        }
+        fetch('facturas.php', {
+                method: 'POST',
+                body: new FormData(e.target)
+            })
+            .then(r => r.json()).then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: '¡Factura generada!',
+                        text: `Factura #${data.id_factura} emitida para ${data.docente} por ${data.total}`,
+                        confirmButtonText: 'Aceptar'
+                    }).then(() => {
+                         // Recargar las liquidaciones para el docente actual
+                        selectDoc.dispatchEvent(new Event('change'));
+                    });
+                } else {
+                    Swal.fire('Error', data.msg || 'Error al generar la factura', 'error');
+                }
+            }).catch(() => Swal.fire('Error', 'Fallo en la solicitud', 'error'));
+    });
+
+    // --- Lógica de paginación y búsqueda (sin cambios) ---
     function paginate() {
         const rows = Array.from(bodyFact.querySelectorAll('tr')).filter(r => r.style.display !== 'none');
         const perPage = 10;
@@ -212,7 +371,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         function renderPagination() {
             pagination.innerHTML = '';
-
+            if (pageCount <= 1) return;
             const prevLi = document.createElement('li');
             prevLi.className = 'page-item ' + (currentPage === 1 ? 'disabled' : '');
             prevLi.innerHTML = `<a href="#" class="page-link">Anterior</a>`;
@@ -225,7 +384,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             };
             pagination.appendChild(prevLi);
-
             for (let p = 1; p <= pageCount; p++) {
                 const li = document.createElement('li');
                 li.className = 'page-item ' + (p === currentPage ? 'active' : '');
@@ -238,7 +396,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 };
                 pagination.appendChild(li);
             }
-
             const nextLi = document.createElement('li');
             nextLi.className = 'page-item ' + (currentPage === pageCount ? 'disabled' : '');
             nextLi.innerHTML = `<a href="#" class="page-link">Siguiente</a>`;
@@ -252,17 +409,10 @@ document.addEventListener('DOMContentLoaded', () => {
             };
             pagination.appendChild(nextLi);
         }
-
-        if (pageCount > 0) {
-            displayRows(currentPage);
-            renderPagination();
-        } else {
-            pagination.innerHTML = '';
-        }
+        displayRows(currentPage);
+        renderPagination();
     }
     paginate();
-
-    // Buscador facturas
     search.addEventListener('input', () => {
         const term = search.value.toLowerCase();
         Array.from(bodyFact.rows).forEach(r => {
@@ -270,91 +420,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         paginate();
     });
-
-    // Cambiar docente: cargar liquidaciones pendientes
-    selectDoc.addEventListener('change', () => {
-        tbodyLiq.innerHTML = '';
-        tablaLiq.classList.add('d-none');
-        inputTotal.value = '$0.00';
-        chkAll.checked = false;
-
-        if (!selectDoc.value) return;
-        fetch(`get_liquidaciones_docente.php?id_docente=${selectDoc.value}`)
-            .then(r => r.json()).then(data => {
-                if (!data.length) return;
-                data.forEach(l => {
-                    const tr = document.createElement('tr');
-                    tr.innerHTML =
-                        `<td class="text-center"><input type="checkbox" name="seleccionados[]" value="${l.id_liquidacion}"></td>
-                            <td>${l.unidad}</td><td class="text-center">${l.grupo}</td><td class="text-center">${l.cohorte}</td>
-                            <td class="text-end">$${parseFloat(l.pendiente).toFixed(2)}</td><td>${l.observacion||''}</td>`;
-                    tbodyLiq.appendChild(tr);
-                });
-                tablaLiq.classList.remove('d-none');
-                chkAll.checked = false;
-                const anyIni = data.some(l => l.pago_inicial_pagado == 0);
-                selectModo.querySelector('option[value="inicial"]').disabled = !anyIni;
-                if (!anyIni) selectModo.value = 'final';
-                Array.from(tbodyLiq.querySelectorAll('input[name="seleccionados[]"]')).forEach(
-                cb => {
-                    const l = data.find(x => x.id_liquidacion == cb.value);
-                    if (l.pago_inicial_pagado) {
-                        cb.checked = false;
-                        cb.closest('tr').style.opacity = '0.6';
-                    }
-                });
-                updateTotal();
-            }).catch(() => Swal.fire('Error', 'No se cargaron liquidaciones', 'error'));
-    });
-
-    // Seleccionar/deseleccionar todos
-    chkAll.addEventListener('change', () => {
-        document.querySelectorAll('#tabla_liq input[name="seleccionados[]"]').forEach(cb => cb.checked =
-            chkAll.checked);
-        updateTotal();
-    });
-
-    // Submit formulario factura
-    document.getElementById('formFactura').addEventListener('submit', e => {
-        e.preventDefault();
-        document.querySelectorAll('#tabla_liq input[name="seleccionados[]"]').forEach(cb => cb
-            .disabled = false);
-        fetch('facturas.php', {
-                method: 'POST',
-                body: new FormData(e.target)
-            })
-            .then(r => r.json()).then(data => {
-                if (data.success) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: '¡Factura generada!',
-                        text: `Factura #${data.id_factura} emitida para ${data.docente} por $${data.total}`,
-                        confirmButtonText: 'Aceptar'
-                    }).then(() => {
-                        const tr = document.createElement('tr');
-                        tr.innerHTML =
-                            `<td class="text-center">${bodyFact.children.length + 1}</td>
-                         <td>${data.docente}</td>
-                         <td class="text-center">${new Date().toISOString().slice(0,10)}</td>
-                         <td class="text-end">$${data.total}</td>
-                         <td class="text-center">
-                            <a href="vista_factura.php?id=${data.id_factura}" target="_blank" class="btn btn-primary btn-sm fw-semibold me-2">Ver/Descargar</a>
-                            <button type="button" data-id="${data.id_factura}" class="btn btn-secondary btn-sm fw-semibold btn-imprimir">Imprimir</button>
-                         </td>`;
-                        bodyFact.prepend(tr);
-                        paginate();
-                    });
-                } else {
-                    Swal.fire('Error', data.msg || 'Error al generar la factura', 'error');
-                }
-            }).catch(() => Swal.fire('Error', 'Fallo en la solicitud', 'error'));
-    });
-
-    // Imprimir sin abrir nueva pestaña
     document.addEventListener('click', (e) => {
         if (e.target.classList.contains('btn-imprimir')) {
             const facturaId = e.target.dataset.id;
-            // Se redirige a la vista con parámetro para que abra diálogo imprimir
             window.location.href = `vista_factura.php?id=${facturaId}&print=1`;
         }
     });

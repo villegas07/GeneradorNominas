@@ -2,7 +2,7 @@
   <div class="container-fluid px-4">
 
     <!-- Logo y título -->
-    <a class="navbar-brand d-flex align-items-center fw-bold text-primary" href="/nomina/index.php">
+    <a class="navbar-brand d-flex align-items-center fw-bold text-primary" href="/nomina/pages/dashboard.php">
       <img src="/nomina/assets/images/polinorte.png" alt="Logo" width="160" height="45" class="me-2">
     </a>
 
@@ -33,11 +33,12 @@
             👤 <?php echo $_SESSION['usuario'] ?? 'Invitado'; ?>
           </a>
           <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
-            <li><a class="dropdown-item" href="#">Perfil</a></li>
-            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="gestionar_usuarios.php">Gestión de usuarios</a></li>
+            <li><a class="dropdown-item" href="ajustes.php">Ajustes</a></li>
             <li>
               <form action="/nomina/logout.php" method="POST" class="d-inline">
-                <button type="submit" class="dropdown-item text-danger">Cerrar sesión</button>
+                <button type="submit" class="dropdown-item text-danger"><a href="logout.php" class="dropdown-item text-danger">Cerrar sesión</a>
+</button>
               </form>
             </li>
           </ul>

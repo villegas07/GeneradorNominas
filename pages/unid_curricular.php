@@ -107,6 +107,7 @@ $unidades = $conn->query("
 ");
 $periodos = $conn->query("SELECT id_periodo, codigo FROM periodo ORDER BY codigo DESC");
 $sedes = $conn->query("SELECT id_sede, nombre FROM sede ORDER BY nombre");
+$catalogo_unidades = $conn->query("SELECT * FROM catalogo_unidades ORDER BY nombre ASC");
 
 include '../includes/header.php';
 include '../includes/navbar.php';
@@ -124,9 +125,15 @@ include '../includes/navbar.php';
       <div class="card-body">
         <form id="formUnidad" class="row g-3">
           <input type="hidden" name="accion" value="crear_unidad">
+          <input type="hidden" name="nombre" id="hidden_nombre_unidad">
           <div class="col-md-3">
-            <label class="form-label fw-semibold">Nombre</label>
-            <input type="text" name="nombre" class="form-control" required>
+            <label class="form-label fw-semibold">Nombre (del Catálogo)</label>
+            <select id="select_catalogo_unidad" class="form-select" required>
+                <option value="">Seleccione una unidad...</option>
+                <?php while($cat = $catalogo_unidades->fetch_assoc()): ?>
+                <option value="<?= $cat['id'] ?>" data-valor="<?= $cat['valor_base'] ?>"><?= htmlspecialchars($cat['nombre']) ?></option>
+                <?php endwhile; ?>
+            </select>
           </div>
           <div class="col-md-2">
             <label class="form-label fw-semibold">Grupo</label>
@@ -134,7 +141,7 @@ include '../includes/navbar.php';
           </div>
           <div class="col-md-2">
             <label class="form-label fw-semibold">Valor</label>
-            <input type="number" step="0.01" name="valor" class="form-control" required>
+            <input type="number" step="0.01" name="valor" id="input_valor_unidad" class="form-control" required readonly>
           </div>
           <div class="col-md-3">
             <label class="form-label fw-semibold">Cohorte</label>
@@ -274,6 +281,26 @@ include '../includes/navbar.php';
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+  // Script para auto-rellenar valor desde el catálogo
+  const selectCatalogo = document.getElementById('select_catalogo_unidad');
+  const inputValor = document.getElementById('input_valor_unidad');
+  const hiddenNombre = document.getElementById('hidden_nombre_unidad');
+
+  selectCatalogo.addEventListener('change', function() {
+      const selectedOption = this.options[this.selectedIndex];
+      const valor = selectedOption.getAttribute('data-valor');
+      const nombre = selectedOption.text;
+
+      if (valor) {
+          inputValor.value = valor;
+          hiddenNombre.value = nombre;
+      } else {
+          inputValor.value = '';
+          hiddenNombre.value = '';
+      }
+  });
+
+  // Lógica existente de la página
   const table = document.querySelector('#tablaUnidades tbody');
   const rows = Array.from(table.getElementsByTagName('tr'));
   const pagination = document.getElementById('pagination');

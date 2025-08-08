@@ -79,13 +79,13 @@ Brayan Villegas Corrales
 ---
 **📄 Licencia**
 - Este proyecto es propiedad de Brayan Villegas Corrales y está protegido por derechos de autor.
-Licencia de uso restringido
-Este software ha sido desarrollado con fines académicos y administrativos. No está autorizado su uso, distribución, copia, modificación ni redistribución sin el consentimiento explícito y por escrito del autor.
+- Licencia de uso restringido
+Este software ha sido desarrollado con fines académicos y administrativos. 
+- No está autorizado su uso, distribución, copia, modificación ni redistribución sin el consentimiento explícito y por escrito del autor.
 ---
 Queda estrictamente prohibido:
 - Usar el código fuente en otros proyectos.
 - Comercializar total o parcialmente este sistema.
 - Publicar el código sin autorización.
-  
-Todos los derechos reservados.
+- Todos los derechos reservados.
 ---

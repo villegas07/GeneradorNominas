@@ -41,10 +41,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
     }
 
     if ($accion === 'crear_unidad') {
+        $nombre = $_POST['nombre'];
+        $grupo = $_POST['grupo'];
+        $id_periodo = $_POST['id_periodo'];
+
+        // Verificar duplicados
+        $stmt_check = $conn->prepare("SELECT COUNT(*) FROM unidad_curricular WHERE nombre = ? AND grupo = ? AND id_periodo = ?");
+        $stmt_check->bind_param("ssi", $nombre, $grupo, $id_periodo);
+        $stmt_check->execute();
+        $stmt_check->bind_result($count);
+        $stmt_check->fetch();
+        $stmt_check->close();
+
+        if ($count > 0) {
+            echo json_encode(['success' => false, 'msg' => 'Esta unidad curricular con este número de grupo ya existe para el período seleccionado.']);
+            exit;
+        }
+
+        // Si no hay duplicados, proceder con la inserción
         $stmt = $conn->prepare("INSERT INTO unidad_curricular (nombre, grupo, valor, id_periodo, id_sede) VALUES (?, ?, ?, ?, ?)");
-        $stmt->bind_param("ssdii", $_POST['nombre'], $_POST['grupo'], $_POST['valor'], $_POST['id_periodo'], $_POST['id_sede']);
-        $success = $stmt->execute();
-        echo json_encode(['success' => $success]);
+        $stmt->bind_param("ssdii", $nombre, $grupo, $_POST['valor'], $id_periodo, $_POST['id_sede']);
+        if ($stmt->execute()) {
+            echo json_encode(['success' => true, 'msg' => 'Unidad registrada correctamente.']);
+        } else {
+            echo json_encode(['success' => false, 'msg' => 'Error al registrar la unidad: ' . $stmt->error]);
+        }
         $stmt->close();
         exit;
     }
@@ -428,8 +449,11 @@ document.getElementById('formUnidad').addEventListener('submit', e => {
   fetch(location.href, { method: 'POST', body: new FormData(e.target) })
     .then(res => res.json())
     .then(data => {
-      if (data.success) Swal.fire('Éxito', 'Unidad registrada correctamente', 'success').then(() => location.reload());
-      else Swal.fire('Error', 'No se pudo registrar la unidad', 'error');
+      if (data.success) {
+        Swal.fire('Éxito', data.msg || 'Unidad registrada correctamente', 'success').then(() => location.reload());
+      } else {
+        Swal.fire('Error', data.msg || 'No se pudo registrar la unidad', 'error');
+      }
     })
     .catch(err => Swal.fire('Error', 'Fallo en la solicitud AJAX: ' + err, 'error'));
 });

@@ -24,7 +24,7 @@
         <li class="nav-item"><a class="nav-link" href="/nomina/pages/asignar_unidad.php">📝 Asignar Unidad</a></li>
         <li class="nav-item"><a class="nav-link" href="/nomina/pages/sedes.php">🏫 Sedes</a></li>
         <li class="nav-item"><a class="nav-link" href="/nomina/pages/facturas.php">💼 Facturas</a></li>
-        <li class="nav-item"><a class="nav-link" href="/nomina/pages/pagos_recibidos.php">💳 Pagos Recibidos</a></li>
+        <li class="nav-item"><a class="nav-link" href="/nomina/pages/pagos_recibidos.php">💳 Pagos</a></li>
       </ul>
 
       <!-- Usuario y Logout -->

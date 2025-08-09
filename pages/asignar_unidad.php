@@ -118,7 +118,7 @@ include '../includes/navbar.php';
                 <table id="tablaAsignaciones" class="table table-bordered table-hover align-middle rounded-4 overflow-hidden">
                     <thead class="table-dark text-center">
                         <tr>
-                            <th>#</th>
+                            <th>N°</th>
                             <th>Docente</th>
                             <th>Unidad Curricular</th>
                             <th>Grupo</th>

@@ -311,7 +311,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const selectedOption = this.options[this.selectedIndex];
       const valor = selectedOption.getAttribute('data-valor');
       const nombre = selectedOption.text;
-
+      
       if (valor) {
           inputValor.value = valor;
           hiddenNombre.value = nombre;

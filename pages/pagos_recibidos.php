@@ -147,7 +147,7 @@ include '../includes/navbar.php';
 <script>
 const pendientes = <?= json_encode($pendientes) ?>;
 const realizados = <?= json_encode($realizados) ?>;
-let curPend = 1, curReal = 1, perPage = 5;
+let curPend = 1, curReal = 1, perPage = 10;
 
 function render(tipo) {
     const data = tipo === 'pend' ? pendientes : realizados;

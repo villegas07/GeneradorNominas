@@ -110,8 +110,11 @@ include '../includes/navbar.php';
     <div class="card shadow-sm border-0 rounded-4">
         <div class="card-body">
             <h5 class="mb-3">Catálogo de Unidades Curriculares</h5>
+            <div class="mb-3">
+                <input type="text" id="buscarUnidad" class="form-control shadow-sm" placeholder="🔍 Buscar por nombre, descripción o valor...">
+            </div>
             <div class="table-responsive">
-                <table class="table table-bordered table-hover align-middle">
+                <table id="tablaCatalogo" class="table table-bordered table-hover align-middle">
                     <thead class="table-dark text-center">
                         <tr>
                             <th>Nombre</th>
@@ -120,7 +123,7 @@ include '../includes/navbar.php';
                             <th style="width: 150px;">Acciones</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="tablaCatalogoBody">
                         <?php if ($catalogo->num_rows > 0): ?>
                             <?php while ($unidad = $catalogo->fetch_assoc()): ?>
                             <tr>
@@ -141,12 +144,18 @@ include '../includes/navbar.php';
                     </tbody>
                 </table>
             </div>
+            <div class="d-flex justify-content-center mt-3">
+                <ul class="pagination" id="pagination"></ul>
+            </div>
         </div>
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
+document.addEventListener('DOMContentLoaded', () => {
+    setupTablePagination('#tablaCatalogoBody', 'pagination', 'buscarUnidad');
+});
+
 document.getElementById('form-catalogo').addEventListener('submit', function(e) {
     e.preventDefault();
     const formData = new FormData(this);

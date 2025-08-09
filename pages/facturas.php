@@ -381,70 +381,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }).catch(() => Swal.fire('Error', 'Fallo en la solicitud', 'error'));
     });
 
-    // --- Lógica de paginación y búsqueda (sin cambios) ---
-    function paginate() {
-        const rows = Array.from(bodyFact.querySelectorAll('tr')).filter(r => r.style.display !== 'none');
-        const perPage = 10;
-        let currentPage = 1;
-        const pageCount = Math.ceil(rows.length / perPage);
+    setupTablePagination('#body_facturas', 'pagination', 'search');
 
-        function displayRows(page) {
-            rows.forEach((row, i) => {
-                row.style.display = (i >= (page - 1) * perPage && i < page * perPage) ? '' : 'none';
-            });
-        }
-
-        function renderPagination() {
-            pagination.innerHTML = '';
-            if (pageCount <= 1) return;
-            const prevLi = document.createElement('li');
-            prevLi.className = 'page-item ' + (currentPage === 1 ? 'disabled' : '');
-            prevLi.innerHTML = `<a href="#" class="page-link">Anterior</a>`;
-            prevLi.onclick = e => {
-                e.preventDefault();
-                if (currentPage > 1) {
-                    currentPage--;
-                    displayRows(currentPage);
-                    renderPagination();
-                }
-            };
-            pagination.appendChild(prevLi);
-            for (let p = 1; p <= pageCount; p++) {
-                const li = document.createElement('li');
-                li.className = 'page-item ' + (p === currentPage ? 'active' : '');
-                li.innerHTML = `<a href="#" class="page-link">${p}</a>`;
-                li.onclick = e => {
-                    e.preventDefault();
-                    currentPage = p;
-                    displayRows(currentPage);
-                    renderPagination();
-                };
-                pagination.appendChild(li);
-            }
-            const nextLi = document.createElement('li');
-            nextLi.className = 'page-item ' + (currentPage === pageCount ? 'disabled' : '');
-            nextLi.innerHTML = `<a href="#" class="page-link">Siguiente</a>`;
-            nextLi.onclick = e => {
-                e.preventDefault();
-                if (currentPage < pageCount) {
-                    currentPage++;
-                    displayRows(currentPage);
-                    renderPagination();
-                }
-            };
-            pagination.appendChild(nextLi);
-        }
-        displayRows(currentPage);
-        renderPagination();
-    }
-    paginate();
-    search.addEventListener('input', () => {
-        const term = search.value.toLowerCase();
-        Array.from(bodyFact.rows).forEach(r => {
-            r.style.display = r.cells[1].textContent.toLowerCase().includes(term) ? '' : 'none';
-        });
-        paginate();
-    });
     document.addEventListener('click', (e) => {
         if (e.target.classList.contains('btn-imprimir')) {
             const facturaId = e.target.dataset.id;

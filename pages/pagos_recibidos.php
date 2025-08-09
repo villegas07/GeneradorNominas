@@ -145,21 +145,19 @@ include '../includes/navbar.php';
 </div>
 
 <script>
-const pendientes = <?= json_encode($pendientes) ?>;
-const realizados = <?= json_encode($realizados) ?>;
-let curPend = 1, curReal = 1, perPage = 5;
+document.addEventListener('DOMContentLoaded', () => {
+    const pendientes = <?= json_encode($pendientes) ?>;
+    const realizados = <?= json_encode($realizados) ?>;
+    const bodyPendientes = document.getElementById('bodyPendientes');
+    const bodyRealizados = document.getElementById('bodyRealizados');
 
-function render(tipo) {
-    const data = tipo === 'pend' ? pendientes : realizados;
-    const body = document.getElementById(tipo === 'pend' ? 'bodyPendientes' : 'bodyRealizados');
-    body.innerHTML = '';
-    const page = tipo === 'pend' ? curPend : curReal;
-
-    data.slice((page - 1) * perPage, page * perPage).forEach((r, i) => {
-        if (tipo === 'pend') {
-            const pag = parseFloat(r.total_pagado), sal = parseFloat(r.total_pago) - pag;
-            body.innerHTML += `<tr>
-                <td>${(page - 1) * perPage + i + 1}</td>
+    function renderPendientes() {
+        bodyPendientes.innerHTML = '';
+        pendientes.forEach((r, i) => {
+            const pag = parseFloat(r.total_pagado);
+            const sal = parseFloat(r.total_pago) - pag;
+            bodyPendientes.innerHTML += `<tr>
+                <td>${i + 1}</td>
                 <td>${r.docente}</td>
                 <td>${r.fecha}</td>
                 <td>$${parseFloat(r.total_pago).toFixed(2)}</td>
@@ -171,54 +169,33 @@ function render(tipo) {
                     </button>
                 </td>
             </tr>`;
-        } else {
-            body.innerHTML += `<tr>
-                <td>${(page - 1) * perPage + i + 1}</td>
+        });
+    }
+
+    function renderRealizados() {
+        bodyRealizados.innerHTML = '';
+        realizados.forEach((r, i) => {
+            bodyRealizados.innerHTML += `<tr>
+                <td>${i + 1}</td>
                 <td>${r.docente}</td>
                 <td>${r.fecha}</td>
                 <td>$${parseFloat(r.monto).toFixed(2)}</td>
                 <td>${r.observacion || ''}</td>
             </tr>`;
-        }
-    });
-
-    renderPagination(tipo);
-}
-
-function renderPagination(tipo) {
-    const data = tipo === 'pend' ? pendientes : realizados;
-    const pages = Math.ceil(data.length / perPage);
-    const ul = document.getElementById(tipo === 'pend' ? 'pagPendientes' : 'pagRealizados');
-    const page = tipo === 'pend' ? curPend : curReal;
-    ul.innerHTML = '';
-
-    const prev = `<li class="page-item ${page <= 1 ? 'disabled' : ''}"><a class="page-link">Anterior</a></li>`;
-    const next = `<li class="page-item ${page >= pages ? 'disabled' : ''}"><a class="page-link">Siguiente</a></li>`;
-
-    ul.insertAdjacentHTML('beforeend', prev);
-    for (let p = 1; p <= pages; p++) {
-        ul.insertAdjacentHTML('beforeend',
-            `<li class="page-item ${p === page ? 'active' : ''}"><a class="page-link">${p}</a></li>`);
+        });
     }
-    ul.insertAdjacentHTML('beforeend', next);
 
-    Array.from(ul.querySelectorAll('a')).forEach(btn => {
-        btn.onclick = e => {
-            e.preventDefault();
-            let newp = page;
-            if (btn.textContent === 'Anterior' && page > 1) newp = page - 1;
-            else if (btn.textContent === 'Siguiente' && page < pages) newp = page + 1;
-            else if (!isNaN(btn.textContent)) newp = parseInt(btn.textContent);
-            if (tipo === 'pend') curPend = newp;
-            else curReal = newp;
-            render(tipo);
-        };
+    renderPendientes();
+    renderRealizados();
+
+    setupTablePagination('#bodyPendientes', 'pagPendientes', null);
+    setupTablePagination('#bodyRealizados', 'pagRealizados', null);
+
+    document.getElementById('selectVista').addEventListener('change', e => {
+        const vista = e.target.value;
+        document.getElementById('tablaPendientes').style.display = vista === 'pendientes' ? 'block' : 'none';
+        document.getElementById('tablaRealizados').style.display = vista === 'realizados' ? 'block' : 'none';
     });
-}
-
-document.getElementById('selectVista').addEventListener('change', e => {
-    document.getElementById('tablaPendientes').style.display = e.target.value === 'pendientes' ? 'block' : 'none';
-    document.getElementById('tablaRealizados').style.display = e.target.value === 'realizados' ? 'block' : 'none';
 });
 
 function abrirModal(id, saldo) {
@@ -250,9 +227,6 @@ document.getElementById('formPago').addEventListener('submit', e => {
     })
     .catch(() => Swal.fire('Error', 'Fallo solicitud', 'error'));
 });
-
-render('pend');
-render('real');
 </script>
 
 <?php include '../includes/footer.php'; ?>

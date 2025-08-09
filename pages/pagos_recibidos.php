@@ -188,13 +188,69 @@ document.addEventListener('DOMContentLoaded', () => {
     renderPendientes();
     renderRealizados();
 
-    setupTablePagination('#bodyPendientes', 'pagPendientes', null);
-    setupTablePagination('#bodyRealizados', 'pagRealizados', null);
+    function setupPaginationForTable(tableBodyId, paginationId) {
+        const table = document.getElementById(tableBodyId);
+        const rows = Array.from(table.getElementsByTagName('tr'));
+        const pagination = document.getElementById(paginationId);
+        let currentPage = 1, rowsPerPage = 10;
+
+        function displayRows(page) {
+            rows.forEach(r => r.style.display = 'none');
+            const start = (page - 1) * rowsPerPage;
+            rows.slice(start, start + rowsPerPage).forEach(r => r.style.display = '');
+        }
+
+        function setupPagination() {
+            pagination.innerHTML = '';
+            const totalPages = Math.ceil(rows.length / rowsPerPage);
+
+            if (totalPages <= 1) return;
+
+            const buildItem = (label, disabled = false, active = false) => `
+                <li class="page-item ${disabled ? 'disabled' : ''} ${active ? 'active' : ''}">
+                    <a class="page-link" href="#">${label}</a>
+                </li>
+            `;
+
+            pagination.insertAdjacentHTML('beforeend', buildItem('Anterior', currentPage === 1));
+            for (let i = 1; i <= totalPages; i++) {
+                pagination.insertAdjacentHTML('beforeend', buildItem(i, false, i === currentPage));
+            }
+            pagination.insertAdjacentHTML('beforeend', buildItem('Siguiente', currentPage === totalPages));
+
+            pagination.querySelectorAll('.page-link').forEach(btn => {
+                btn.addEventListener('click', e => {
+                    e.preventDefault();
+                    const txt = btn.textContent;
+                    if (txt === 'Anterior' && currentPage > 1) currentPage--;
+                    else if (txt === 'Siguiente' && currentPage < totalPages) currentPage++;
+                    else if (!isNaN(txt)) currentPage = parseInt(txt);
+                    displayRows(currentPage);
+                    setupPagination();
+                });
+            });
+        }
+        displayRows(currentPage);
+        setupPagination();
+    }
+
+    setupPaginationForTable('bodyPendientes', 'pagPendientes');
+    let paginacionRealizadosInicializada = false;
 
     document.getElementById('selectVista').addEventListener('change', e => {
         const vista = e.target.value;
-        document.getElementById('tablaPendientes').style.display = vista === 'pendientes' ? 'block' : 'none';
-        document.getElementById('tablaRealizados').style.display = vista === 'realizados' ? 'block' : 'none';
+        if (vista === 'pendientes') {
+            document.getElementById('tablaPendientes').style.display = 'block';
+            document.getElementById('tablaRealizados').style.display = 'none';
+        } else {
+            document.getElementById('tablaPendientes').style.display = 'none';
+            document.getElementById('tablaRealizados').style.display = 'block';
+
+            if (!paginacionRealizadosInicializada) {
+                setupPaginationForTable('bodyRealizados', 'pagRealizados');
+                paginacionRealizadosInicializada = true;
+            }
+        }
     });
 });
 

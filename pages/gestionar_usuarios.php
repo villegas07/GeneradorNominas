@@ -231,7 +231,63 @@ $result = $conn->query("SELECT * FROM usuario ORDER BY id_usuario DESC");
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    setupTablePagination('#tablaUsuarios tbody', 'pagination', 'buscarUsuario');
+    const table = document.querySelector('#tablaUsuarios tbody');
+    const rows = Array.from(table.getElementsByTagName('tr'));
+    const pagination = document.getElementById('pagination');
+    let currentPage = 1,
+        rowsPerPage = 10,
+        filteredRows = [...rows];
+
+    function displayRows(page) {
+        rows.forEach(r => r.style.display = 'none');
+        const start = (page - 1) * rowsPerPage;
+        filteredRows.slice(start, start + rowsPerPage).forEach(r => r.style.display = '');
+    }
+
+    function setupPagination() {
+        pagination.innerHTML = '';
+        const totalPages = Math.ceil(filteredRows.length / rowsPerPage);
+
+        if (totalPages <= 1) return;
+
+        const buildItem = (label, disabled = false, active = false) => `
+            <li class="page-item ${disabled ? 'disabled' : ''} ${active ? 'active' : ''}">
+                <a class="page-link" href="#">${label}</a>
+            </li>
+        `;
+
+        pagination.insertAdjacentHTML('beforeend', buildItem('Anterior', currentPage === 1));
+        for (let i = 1; i <= totalPages; i++) {
+            pagination.insertAdjacentHTML('beforeend', buildItem(i, false, i === currentPage));
+        }
+        pagination.insertAdjacentHTML('beforeend', buildItem('Siguiente', currentPage === totalPages));
+
+        pagination.querySelectorAll('.page-link').forEach(btn => {
+            btn.addEventListener('click', e => {
+                e.preventDefault();
+                const txt = btn.textContent;
+                if (txt === 'Anterior' && currentPage > 1) currentPage--;
+                else if (txt === 'Siguiente' && currentPage < totalPages) currentPage++;
+                else if (!isNaN(txt)) currentPage = parseInt(txt);
+                displayRows(currentPage);
+                setupPagination();
+            });
+        });
+    }
+
+    document.getElementById('buscarUsuario').addEventListener('input', function() {
+        const term = this.value.toLowerCase();
+        filteredRows = rows.filter(r => {
+            const tds = r.getElementsByTagName('td');
+            return [tds[1], tds[2]].some(td => td.textContent.toLowerCase().includes(term));
+        });
+        currentPage = 1;
+        displayRows(currentPage);
+        setupPagination();
+    });
+
+    displayRows(currentPage);
+    setupPagination();
 });
 
 function editarUsuario(u) {

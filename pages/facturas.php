@@ -191,9 +191,6 @@ $facturas = $conn->query("
     </div>
 </div>
 
-<!-- SweetAlert2 -->
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const selectDoc = document.getElementById('select_doc'),
@@ -201,10 +198,7 @@ document.addEventListener('DOMContentLoaded', () => {
         tablaLiq = document.getElementById('tabla_liq'),
         tbodyLiq = tablaLiq.querySelector('tbody'),
         chkAll = document.getElementById('chk_all'),
-        inputTotal = document.getElementById('input_total'),
-        bodyFact = document.getElementById('body_facturas'),
-        pagination = document.getElementById('pagination'),
-        search = document.getElementById('search');
+        inputTotal = document.getElementById('input_total');
 
     let liquidacionesData = [];
     let isPostPaymentReload = false;
@@ -251,7 +245,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const selectedLiquidaciones = getSelectedLiquidaciones();
         const modo = selectModo.value;
 
-        // Update the amount for each row in the table
         tbodyLiq.querySelectorAll('tr').forEach(tr => {
             const liqId = parseInt(tr.querySelector('input[type="checkbox"]').value);
             const liq = liquidacionesData.find(l => parseInt(l.id_liquidacion) === liqId);
@@ -271,7 +264,6 @@ document.addEventListener('DOMContentLoaded', () => {
             tr.cells[4].textContent = formatCurrency(amountForThisRow);
         });
 
-        // Calculate total for selected items
         selectedLiquidaciones.forEach(l => {
             const primerPago = parseFloat(l.primer_pago);
             const segundoPago = parseFloat(l.segundo_pago);
@@ -381,7 +373,61 @@ document.addEventListener('DOMContentLoaded', () => {
             }).catch(() => Swal.fire('Error', 'Fallo en la solicitud', 'error'));
     });
 
-    setupTablePagination('#body_facturas', 'pagination', 'search');
+    const table = document.querySelector('#body_facturas');
+    const rows = Array.from(table.getElementsByTagName('tr'));
+    const pagination = document.getElementById('pagination');
+    let currentPage = 1, rowsPerPage = 10, filteredRows = [...rows];
+
+    function displayRows(page) {
+        rows.forEach(r => r.style.display = 'none');
+        const start = (page - 1) * rowsPerPage;
+        filteredRows.slice(start, start + rowsPerPage).forEach(r => r.style.display = '');
+    }
+
+    function setupPagination() {
+        pagination.innerHTML = '';
+        const totalPages = Math.ceil(filteredRows.length / rowsPerPage);
+
+        if (totalPages <= 1) return;
+
+        const buildItem = (label, disabled = false, active = false) => `
+            <li class="page-item ${disabled ? 'disabled' : ''} ${active ? 'active' : ''}">
+                <a class="page-link" href="#">${label}</a>
+            </li>
+        `;
+
+        pagination.insertAdjacentHTML('beforeend', buildItem('Anterior', currentPage === 1));
+        for (let i = 1; i <= totalPages; i++) {
+            pagination.insertAdjacentHTML('beforeend', buildItem(i, false, i === currentPage));
+        }
+        pagination.insertAdjacentHTML('beforeend', buildItem('Siguiente', currentPage === totalPages));
+
+        pagination.querySelectorAll('.page-link').forEach(btn => {
+            btn.addEventListener('click', e => {
+                e.preventDefault();
+                const txt = btn.textContent;
+                if (txt === 'Anterior' && currentPage > 1) currentPage--;
+                else if (txt === 'Siguiente' && currentPage < totalPages) currentPage++;
+                else if (!isNaN(txt)) currentPage = parseInt(txt);
+                displayRows(currentPage);
+                setupPagination();
+            });
+        });
+    }
+
+    document.getElementById('search').addEventListener('input', function() {
+        const term = this.value.toLowerCase();
+        filteredRows = rows.filter(r => {
+            const tds = r.getElementsByTagName('td');
+            return tds[1].textContent.toLowerCase().includes(term);
+        });
+        currentPage = 1;
+        displayRows(currentPage);
+        setupPagination();
+    });
+
+    displayRows(currentPage);
+    setupPagination();
 
     document.addEventListener('click', (e) => {
         if (e.target.classList.contains('btn-imprimir')) {

@@ -115,7 +115,7 @@ $result = $conn->query("SELECT * FROM docente ORDER BY nombre");
                 <table id="tablaDocentes" class="table table-bordered table-hover align-middle rounded-4 overflow-hidden">
                     <thead class="table-dark text-center">
                         <tr>
-                            <th>#</th>
+                            <th>N°</th>
                             <th>Nombre</th>
                             <th>Identificación</th>
                             <th>NIT</th>

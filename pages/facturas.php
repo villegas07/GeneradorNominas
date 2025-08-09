@@ -157,7 +157,7 @@ $facturas = $conn->query("
                     id="tabla_facturas">
                     <thead class="table-dark text-center">
                         <tr>
-                            <th style="width: 50px;">#</th>
+                            <th style="width: 50px;">N°</th>
                             <th>Docente</th>
                             <th>Fecha</th>
                             <th class="text-end">Total</th>

@@ -202,7 +202,7 @@ include '../includes/navbar.php';
         <table id="tablaUnidades" class="table table-bordered table-hover align-middle rounded-4 overflow-hidden">
           <thead class="table-dark text-center">
             <tr>
-              <th>#</th>
+              <th>N°</th>
               <th>Nombre</th>
               <th>Grupo</th>
               <th>Valor</th>

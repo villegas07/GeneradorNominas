@@ -72,7 +72,7 @@ include '../includes/navbar.php';
                             <table class="table table-bordered align-middle rounded-3 overflow-hidden mb-0">
                                 <thead class="table-dark">
                                     <tr>
-                                        <th>#</th>
+                                        <th>N°</th>
                                         <th>Docente</th>
                                         <th>Fecha Factura</th>
                                         <th>Total</th>
@@ -99,7 +99,7 @@ include '../includes/navbar.php';
                             <table class="table table-striped table-bordered align-middle rounded-3 overflow-hidden mb-0">
                                 <thead class="table-dark">
                                     <tr>
-                                        <th>#</th>
+                                        <th>N°</th>
                                         <th>Docente</th>
                                         <th>Fecha Pago</th>
                                         <th>Monto</th>

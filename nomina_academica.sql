@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 11-08-2025 a las 21:17:29
+-- Tiempo de generación: 11-08-2025 a las 21:56:50
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.2.12
 
@@ -203,6 +203,13 @@ CREATE TABLE `usuario` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
+-- Volcado de datos para la tabla `usuario`
+--
+
+INSERT INTO `usuario` (`id_usuario`, `username`, `password_hash`, `rol`, `estado`, `id_docente`, `super_admin`) VALUES
+(1, 'admin', '$2y$10$H7NBB7QWwk3mQUjVJ8WlFe5R2kUbXk7Plae.KfQRFhm1m7BfxB5iG', 'admin', 1, NULL, 1);
+
+--
 -- Índices para tablas volcadas
 --
 
@@ -382,7 +389,7 @@ ALTER TABLE `unidad_curricular`
 -- AUTO_INCREMENT de la tabla `usuario`
 --
 ALTER TABLE `usuario`
-  MODIFY `id_usuario` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id_usuario` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- Restricciones para tablas volcadas

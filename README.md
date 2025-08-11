@@ -25,6 +25,10 @@
 - JavaScript (vanilla)
 - SweetAlert2 (para notificaciones)
 - XAMPP (entorno de desarrollo local)
+- PhpSpreadsheet (para exportación a Excel)
+- Composer (para instalación de dependencias)
+- Extensión ZIP habilitada en PHP
+- Extensión XML habilitada en PHP
 
 ---
 
@@ -46,7 +50,13 @@ C:\xampp\htdocs\
 - Crear una base de datos en phpMyAdmin (por ejemplo: nomina_academica).
 - Importar el archivo nomina_academica.sql incluido en la carpeta /database (debes crearlo si aún no lo has exportado).
 ---
-4. **Configurar conexión a la base de datos**
+4. **Instalar dependencias con Composer**
+- Desde la raíz del proyecto, ejecutar:
+```bash
+composer install
+```
+---
+5. **Configurar conexión a la base de datos**
 - Editar el archivo config/db.php con tus credenciales locales:
 ```bash
 $host = 'localhost';
@@ -55,13 +65,13 @@ $pass = '';
 $db   = 'nomina_academica';
 ```
 ---
-5. **Acceder al sistema**
+6. **Acceder al sistema**
 - Abre tu navegador y accede a:
 ```bash
 http://localhost/Nomina/index.php
 ```
 ---
-6. **Credenciales por defecto**
+7. **Credenciales por defecto**
 - Usuario: admin
 - Contraseña: admin123
 ---

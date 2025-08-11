@@ -372,8 +372,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         text: `Factura #${data.id_factura} emitida para ${data.docente} por ${data.total}`,
                         confirmButtonText: 'Aceptar'
                     }).then(() => {
-                        isPostPaymentReload = true;
-                        selectDoc.dispatchEvent(new Event('change'));
+                        location.reload();
                     });
                 } else {
                     Swal.fire('Error', data.msg || 'Error al generar la factura', 'error');

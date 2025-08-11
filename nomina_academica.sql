@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 08-08-2025 a las 04:17:24
+-- Tiempo de generación: 11-08-2025 a las 21:17:29
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.2.12
 
@@ -20,6 +20,19 @@ SET time_zone = "+00:00";
 --
 -- Base de datos: `nomina_academica`
 --
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `catalogo_unidades`
+--
+
+CREATE TABLE `catalogo_unidades` (
+  `id` int(11) NOT NULL,
+  `nombre` varchar(255) NOT NULL,
+  `descripcion` text DEFAULT NULL,
+  `valor_base` decimal(12,2) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
 
@@ -190,15 +203,15 @@ CREATE TABLE `usuario` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
--- Volcado de datos para la tabla `usuario`
---
-
-INSERT INTO `usuario` (`id_usuario`, `username`, `password_hash`, `rol`, `estado`, `id_docente`, `super_admin`) VALUES
-(1, 'admin', '$2y$10$.lR.hHQplGBhuge9r6NyTuenh.TRJOk7WtMdC9fnFbjfVFkPgfarm', 'admin', 1, NULL, 1);
-
---
 -- Índices para tablas volcadas
 --
+
+--
+-- Indices de la tabla `catalogo_unidades`
+--
+ALTER TABLE `catalogo_unidades`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `nombre` (`nombre`);
 
 --
 -- Indices de la tabla `detalle_factura`
@@ -294,6 +307,12 @@ ALTER TABLE `usuario`
 --
 
 --
+-- AUTO_INCREMENT de la tabla `catalogo_unidades`
+--
+ALTER TABLE `catalogo_unidades`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT de la tabla `detalle_factura`
 --
 ALTER TABLE `detalle_factura`
@@ -363,7 +382,7 @@ ALTER TABLE `unidad_curricular`
 -- AUTO_INCREMENT de la tabla `usuario`
 --
 ALTER TABLE `usuario`
-  MODIFY `id_usuario` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id_usuario` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- Restricciones para tablas volcadas

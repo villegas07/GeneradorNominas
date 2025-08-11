@@ -100,7 +100,7 @@ $pdf->Cell(140, 7, utf8_decode($factura['docente_nombre']), 1, 1);
 
 // LA SUMA DE
 $pdf->Cell(50, 7, utf8_decode('LA SUMA DE:'), 1, 0);
-$pdf->Cell(140, 7, utf8_decode(numeroALetras($factura['total_pago']) . ' PESOS'), 1, 1);
+$pdf->Cell(140, 7, utf8_decode(numeroALetras($factura['total_pago']) . ' pesos'), 1, 1);
 
 // POR CONCEPTO DE
 $pdf->Cell(50, 7, utf8_decode('POR CONCEPTO DE:'), 1, 0);
@@ -119,7 +119,7 @@ $pdf->Cell(95, 7, '', 1, 1, 'C');
 // Mostrar todos los cursos
 foreach ($detalles as $detalle) {
     $concepto = utf8_decode($detalle['porcentaje_pago'] . ' de ' . $detalle['descripcion']);
-    $monto = '$' . number_format($detalle['monto'], 2) . ' PESOS';
+    $monto = '$' . number_format($detalle['monto'], 2) . ' pesos';
     $pdf->Cell(95, 7, $concepto, 1, 0);
     $pdf->Cell(95, 7, $monto, 1, 1, 'R');
 }
@@ -147,7 +147,11 @@ $pdf->SetFont('Arial', '', 10);
 $pdf->SetXY(20, $y_firma + 2);
 $pdf->Cell(80, 7, utf8_decode('Firma del Beneficiario'), 0, 0, 'C');
 $pdf->SetXY(115, $y_firma + 2);
-$pdf->Cell(80, 7, utf8_decode('C.I.: ' . $factura['identificacion']), 0, 1, 'C');
+$pdf->Cell(80, 7, utf8_decode('C.I.:'), 0, 1, 'C');
+
+// Agregar la identificación del docente en una nueva línea debajo de la firma izquierda
+$pdf->SetXY(20, $y_firma + 10);
+$pdf->Cell(80, 7, utf8_decode('ID: ' . $factura['identificacion']), 0, 0, 'C');
 
 $pdf->Output();
 ?>

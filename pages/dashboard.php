@@ -3,87 +3,180 @@ session_start();
 require_once '../utils/verificar_sesion.php';
 include '../config/db.php';
 
-// Estadísticas
-$total_facturado = $conn->query("SELECT SUM(total_pago) FROM factura")->fetch_row()[0] ?: 0;
-$total_pagado = $conn->query("SELECT SUM(monto) FROM pago_factura")->fetch_row()[0] ?: 0;
+// Capturar sede seleccionada
+$sede_id = isset($_GET['sede_id']) ? intval($_GET['sede_id']) : 0;
+
+// Obtener todas las sedes para el select
+$sedes = $conn->query("SELECT id_sede, nombre FROM sede ORDER BY nombre");
+
+// Condición para filtrar por sede
+$filtro_sede = "";
+if ($sede_id > 0) {
+    $filtro_sede = " AND uc.id_sede = $sede_id ";
+}
+
+// Totales
+$sql_total_facturado = "
+    SELECT SUM(f.total_pago)
+    FROM factura f
+    JOIN docente d ON f.id_docente = d.id_docente
+    JOIN docente_unidad du ON du.id_docente = d.id_docente
+    JOIN unidad_curricular uc ON uc.id_unidad = du.id_unidad
+    WHERE 1=1 $filtro_sede
+";
+$total_facturado = $conn->query($sql_total_facturado)->fetch_row()[0] ?: 0;
+
+$sql_total_pagado = "
+    SELECT SUM(pf.monto)
+    FROM pago_factura pf
+    JOIN factura f ON pf.id_factura = f.id_factura
+    JOIN docente d ON f.id_docente = d.id_docente
+    JOIN docente_unidad du ON du.id_docente = d.id_docente
+    JOIN unidad_curricular uc ON uc.id_unidad = du.id_unidad
+    WHERE 1=1 $filtro_sede
+";
+$total_pagado = $conn->query($sql_total_pagado)->fetch_row()[0] ?: 0;
+
 $total_pendiente = $total_facturado - $total_pagado;
 
-$top_docentes = $conn->query("
-  SELECT d.nombre, SUM(f.total_pago) AS total
-  FROM factura f
-  JOIN docente d ON f.id_docente = d.id_docente
-  GROUP BY d.id_docente
-  ORDER BY total DESC
-  LIMIT 5
-");
+// Top docentes
+$sql_top_docentes = "
+    SELECT d.nombre, SUM(f.total_pago) AS total
+    FROM factura f
+    JOIN docente d ON f.id_docente = d.id_docente
+    JOIN docente_unidad du ON du.id_docente = d.id_docente
+    JOIN unidad_curricular uc ON uc.id_unidad = du.id_unidad
+    WHERE 1=1 $filtro_sede
+    GROUP BY d.id_docente
+    ORDER BY total DESC
+    LIMIT 5
+";
+$top_docentes = $conn->query($sql_top_docentes);
 
-$facturas_por_mes = $conn->query("
-  SELECT DATE_FORMAT(fecha,'%Y-%m') AS mes, SUM(total_pago) as total
-  FROM factura
-  GROUP BY mes ORDER BY mes
-");
+// Facturas por mes
+$sql_facturas_por_mes = "
+    SELECT DATE_FORMAT(f.fecha,'%Y-%m') AS mes, SUM(f.total_pago) as total
+    FROM factura f
+    JOIN docente d ON f.id_docente = d.id_docente
+    JOIN docente_unidad du ON du.id_docente = d.id_docente
+    JOIN unidad_curricular uc ON uc.id_unidad = du.id_unidad
+    WHERE 1=1 $filtro_sede
+    GROUP BY mes ORDER BY mes
+";
+$facturas_por_mes = $conn->query($sql_facturas_por_mes);
 
-$pago_por_mes = $conn->query("
-  SELECT DATE_FORMAT(p.fecha,'%Y-%m') AS mes, SUM(p.monto) AS total
-  FROM pago_factura p
-  GROUP BY mes ORDER BY mes
-");
+// Pagos por mes
+$sql_pagos_por_mes = "
+    SELECT DATE_FORMAT(p.fecha,'%Y-%m') AS mes, SUM(p.monto) AS total
+    FROM pago_factura p
+    JOIN factura f ON p.id_factura = f.id_factura
+    JOIN docente d ON f.id_docente = d.id_docente
+    JOIN docente_unidad du ON du.id_docente = d.id_docente
+    JOIN unidad_curricular uc ON uc.id_unidad = du.id_unidad
+    WHERE 1=1 $filtro_sede
+    GROUP BY mes ORDER BY mes
+";
+$pago_por_mes = $conn->query($sql_pagos_por_mes);
 ?>
+
 
 <?php include '../includes/header.php'; ?>
 <?php include '../includes/navbar.php'; ?>
 
+
 <div class="container py-5">
-  <h2 class="mb-4 fw-bold text-dark">📊 Panel de Control Financiero</h2>
+    <h2 class="mb-4 fw-bold text-dark">📊 Panel de Control Financiero</h2>
 
-  <div class="row g-4 mb-5">
-    <div class="col-md-4">
-      <div class="card shadow-sm border-0 bg-gradient-light-blue text-white h-100">
-        <div class="card-body d-flex flex-column align-items-center text-center">
-          <i class="bi bi-cash-coin display-4 mb-2"></i>
-          <h5 class="card-title">Total Facturado</h5>
-          <h3 class="fw-bold">$<?= number_format($total_facturado, 2) ?></h3>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-4">
-      <div class="card shadow-sm border-0 bg-gradient-success text-white h-100">
-        <div class="card-body d-flex flex-column align-items-center text-center">
-          <i class="bi bi-check2-circle display-4 mb-2"></i>
-          <h5 class="card-title">Total Pagado</h5>
-          <h3 class="fw-bold">$<?= number_format($total_pagado, 2) ?></h3>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-4">
-      <div class="card shadow-sm border-0 bg-gradient-danger text-white h-100">
-        <div class="card-body d-flex flex-column align-items-center text-center">
-          <i class="bi bi-exclamation-triangle display-4 mb-2"></i>
-          <h5 class="card-title">Total Pendiente</h5>
-          <h3 class="fw-bold">$<?= number_format($total_pendiente, 2) ?></h3>
-        </div>
-      </div>
-    </div>
-  </div>
+    <!-- Contenedor flotante -->
+<div class="card shadow-sm mb-4" style="position: sticky; top: 0; z-index: 1030; background-color: #fff;">
+    <div class="card-body py-3">
+        <form method="GET" class="row g-2 align-items-center">
+            <!-- Filtro por sede -->
+            <div class="col-auto">
+                <label for="sede_id" class="col-form-label fw-bold">
+                    <i class="bi bi-building"></i> Filtrar por sede:
+                </label>
+            </div>
+            <div class="col-auto">
+                <select name="sede_id" id="sede_id" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="0">Todas las sedes</option>
+                    <?php while ($s = $sedes->fetch_assoc()): ?>
+                    <option value="<?= $s['id_sede'] ?>" <?= ($sede_id == $s['id_sede']) ? 'selected' : '' ?>>
+                        <?= htmlspecialchars($s['nombre']) ?>
+                    </option>
+                    <?php endwhile; ?>
+                </select>
+            </div>
 
-  <div class="row g-4">
-    <div class="col-md-6">
-      <div class="card shadow-sm border-0">
-        <div class="card-body">
-          <h5 class="card-title mb-3">🏅 Top 5 Docentes con Mayor Facturación</h5>
-          <canvas id="chartTop" height="200"></canvas>
-        </div>
-      </div>
+            <!-- Botón Reset -->
+            <?php if ($sede_id && $sede_id != 0): ?>
+            <div class="col-auto">
+                <a href="?sede_id=0" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-x-circle"></i> Reset
+                </a>
+            </div>
+            <?php endif; ?>
+
+            <!-- Botón Exportar -->
+            <div class="col-auto ms-auto">
+                <a href="../utils/exportar.php<?= ($sede_id && $sede_id != 0) ? '?sede_id=' . $sede_id : '' ?>"
+                    class="btn btn-success btn-sm">
+                    <i class="bi bi-file-earmark-excel"></i> Exportar
+                </a>
+            </div>
+
+        </form>
     </div>
-    <div class="col-md-6">
-      <div class="card shadow-sm border-0">
-        <div class="card-body">
-          <h5 class="card-title mb-3">📈 Evolución de Facturas vs Pagos</h5>
-          <canvas id="chartTrend" height="200"></canvas>
+</div>
+
+    <div class="row g-4 mb-5">
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0 bg-gradient-light-blue text-white h-100">
+                <div class="card-body d-flex flex-column align-items-center text-center">
+                    <i class="bi bi-cash-coin display-4 mb-2"></i>
+                    <h5 class="card-title">Total Facturado</h5>
+                    <h3 class="fw-bold">$<?= number_format($total_facturado, 2) ?></h3>
+                </div>
+            </div>
         </div>
-      </div>
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0 bg-gradient-success text-white h-100">
+                <div class="card-body d-flex flex-column align-items-center text-center">
+                    <i class="bi bi-check2-circle display-4 mb-2"></i>
+                    <h5 class="card-title">Total Pagado</h5>
+                    <h3 class="fw-bold">$<?= number_format($total_pagado, 2) ?></h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0 bg-gradient-danger text-white h-100">
+                <div class="card-body d-flex flex-column align-items-center text-center">
+                    <i class="bi bi-exclamation-triangle display-4 mb-2"></i>
+                    <h5 class="card-title">Total Pendiente</h5>
+                    <h3 class="fw-bold">$<?= number_format($total_pendiente, 2) ?></h3>
+                </div>
+            </div>
+        </div>
     </div>
-  </div>
+
+    <div class="row g-4">
+        <div class="col-md-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">🏅 Top 5 Docentes con Mayor Facturación</h5>
+                    <canvas id="chartTop" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">📈 Evolución de Facturas vs Pagos</h5>
+                    <canvas id="chartTrend" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Bootstrap Icons -->
@@ -91,96 +184,102 @@ $pago_por_mes = $conn->query("
 
 <!-- Estilos personalizados opcionales -->
 <style>
-  .bg-gradient-light-blue {
+.bg-gradient-light-blue {
     background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-  }
-  .bg-gradient-success {
+}
+
+.bg-gradient-success {
     background: linear-gradient(135deg, #38ef7d 0%, #11998e 100%);
-  }
-  .bg-gradient-danger {
+}
+
+.bg-gradient-danger {
     background: linear-gradient(135deg, #f85032 0%, #e73827 100%);
-  }
+}
 </style>
 
 <!-- Scripts Chart.js -->
 <script>
-const topLabels = [], topData = [];
+const topLabels = [],
+    topData = [];
 <?php while($r = $top_docentes->fetch_assoc()): ?>
-  topLabels.push(<?= json_encode($r['nombre']) ?>);
-  topData.push(<?= $r['total'] ?>);
+topLabels.push(<?= json_encode($r['nombre']) ?>);
+topData.push(<?= $r['total'] ?>);
 <?php endwhile; ?>
 
-const trendLabels = [], facturasData = [], pagosData = [];
+const trendLabels = [],
+    facturasData = [],
+    pagosData = [];
 <?php while($r = $facturas_por_mes->fetch_assoc()):
   $r2 = $pago_por_mes->fetch_assoc() ?: ['mes' => $r['mes'], 'total' => 0];
 ?>
-  trendLabels.push(<?= json_encode($r['mes']) ?>);
-  facturasData.push(<?= $r['total'] ?>);
-  pagosData.push(<?= $r2['total'] ?>);
+trendLabels.push(<?= json_encode($r['mes']) ?>);
+facturasData.push(<?= $r['total'] ?>);
+pagosData.push(<?= $r2['total'] ?>);
 <?php endwhile; ?>
 
 const ctxTop = document.getElementById('chartTop').getContext('2d');
 new Chart(ctxTop, {
-  type: 'bar',
-  data: {
-    labels: topLabels,
-    datasets: [{
-      label: 'Facturado ($)',
-      data: topData,
-      backgroundColor: 'rgba(13, 110, 253, 0.7)',
-      borderRadius: 8
-    }]
-  },
-  options: {
-    responsive: true,
-    plugins: {
-      legend: { display: false },
-      tooltip: {
-        callbacks: {
-          label: context => `$${context.parsed.y.toLocaleString()}`
+    type: 'bar',
+    data: {
+        labels: topLabels,
+        datasets: [{
+            label: 'Facturado ($)',
+            data: topData,
+            backgroundColor: 'rgba(13, 110, 253, 0.7)',
+            borderRadius: 8
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: {
+                display: false
+            },
+            tooltip: {
+                callbacks: {
+                    label: context => `$${context.parsed.y.toLocaleString()}`
+                }
+            }
         }
-      }
     }
-  }
 });
 
 const ctxTrend = document.getElementById('chartTrend').getContext('2d');
 new Chart(ctxTrend, {
-  type: 'line',
-  data: {
-    labels: trendLabels,
-    datasets: [
-      {
-        label: 'Facturas',
-        data: facturasData,
-        borderColor: '#0d6efd',
-        backgroundColor: 'rgba(13, 110, 253, 0.1)',
-        tension: 0.4,
-        fill: true
-      },
-      {
-        label: 'Pagos',
-        data: pagosData,
-        borderColor: '#198754',
-        backgroundColor: 'rgba(25, 135, 84, 0.1)',
-        tension: 0.4,
-        fill: true
-      }
-    ]
-  },
-  options: {
-    responsive: true,
-    plugins: {
-      legend: {
-        position: 'bottom'
-      },
-      tooltip: {
-        callbacks: {
-          label: context => `$${context.parsed.y.toLocaleString()}`
+    type: 'line',
+    data: {
+        labels: trendLabels,
+        datasets: [{
+                label: 'Facturas',
+                data: facturasData,
+                borderColor: '#0d6efd',
+                backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                tension: 0.4,
+                fill: true
+            },
+            {
+                label: 'Pagos',
+                data: pagosData,
+                borderColor: '#198754',
+                backgroundColor: 'rgba(25, 135, 84, 0.1)',
+                tension: 0.4,
+                fill: true
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: {
+                position: 'bottom'
+            },
+            tooltip: {
+                callbacks: {
+                    label: context => `$${context.parsed.y.toLocaleString()}`
+                }
+            }
         }
-      }
     }
-  }
 });
 </script>
 

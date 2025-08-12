@@ -1,4 +1,6 @@
 <?php
+ob_start(); // Evitar el error de salida previa
+
 require('../fpdf/fpdf.php');
 require('../config/db.php');
 require('../utils/numero_a_letras.php'); // Conversión de números a letras
@@ -28,7 +30,7 @@ if (!$factura) {
     die('Factura no encontrada');
 }
 
-// Consultar detalles de factura (múltiples cursos)
+// Consultar detalles de factura
 $stmt_detalle = $conn->prepare("
     SELECT df.porcentaje_pago, df.descripcion, df.monto
     FROM detalle_factura df
@@ -41,7 +43,7 @@ $detalles = $detalle_result->fetch_all(MYSQLI_ASSOC);
 
 $metodo_pago = !empty($factura['metodo_pago']) ? $factura['metodo_pago'] : 'Efectivo';
 
-// Leer la configuración
+// Leer configuración
 $configFile = '../config/config.json';
 $config = json_decode(file_get_contents($configFile), true);
 $logoPath = '../' . $config['logo_path'];
@@ -49,26 +51,38 @@ $nit = $config['nit'];
 
 class PDF extends FPDF
 {
-    var $logoPath;
-    function __construct($orientation='P', $unit='mm', $size='A4', $logoPath)
+    public $logoPath;
+    public $numeroFactura;
+
+    function __construct($orientation='P', $unit='mm', $size='A4', $logoPath, $numeroFactura)
     {
         parent::__construct($orientation, $unit, $size);
         $this->logoPath = $logoPath;
+        $this->numeroFactura = $numeroFactura;
     }
 
     function Header()
     {
+        // Logo
         if (file_exists($this->logoPath)) {
             $this->Image($this->logoPath, 10, 10, 40);
         }
+
+        // Título centrado
         $this->SetFont('Arial', 'B', 18);
-        $this->SetXY(150, 20);
-        $this->Cell(50, 10, utf8_decode('Recibo de Pago'), 0, 1, 'C');
-        $this->Ln(15);
+        $this->Cell(0, 10, utf8_decode('Recibo de Pago'), 0, 0, 'C');
+
+        // Número de factura arriba a la derecha
+        $this->SetFont('Arial', '', 12);
+        $this->SetXY(-60, 10);
+        $this->Cell(50, 10, utf8_decode('Factura Nº ' . $this->numeroFactura), 0, 0, 'R');
+
+        $this->Ln(20);
     }
 }
 
-$pdf = new PDF('P', 'mm', 'A4', $logoPath);
+// Crear PDF
+$pdf = new PDF('P', 'mm', 'A4', $logoPath, $id_factura);
 $pdf->AddPage();
 $pdf->SetFont('Arial', '', 11);
 
@@ -118,8 +132,18 @@ $pdf->Cell(95, 7, '', 1, 1, 'C');
 
 // Mostrar todos los cursos
 foreach ($detalles as $detalle) {
-    $concepto = utf8_decode($detalle['porcentaje_pago'] . ' de ' . $detalle['descripcion']);
+    $valor_porcentaje = rtrim(rtrim($detalle['porcentaje_pago'], '0'), '.');
+    if ($valor_porcentaje == '50') {
+        $etiqueta_porcentaje = 'Inicio (' . $valor_porcentaje . '%)';
+    } elseif ($valor_porcentaje == '100') {
+        $etiqueta_porcentaje = 'Completo (' . $valor_porcentaje . '%)';
+    } else {
+        $etiqueta_porcentaje = $valor_porcentaje . '%';
+    }
+
+    $concepto = utf8_decode($etiqueta_porcentaje . ' de ' . $detalle['descripcion']);
     $monto = '$' . number_format($detalle['monto'], 2) . ' pesos';
+
     $pdf->Cell(95, 7, $concepto, 1, 0);
     $pdf->Cell(95, 7, $monto, 1, 1, 'R');
 }
@@ -149,9 +173,10 @@ $pdf->Cell(80, 7, utf8_decode('Firma del Beneficiario'), 0, 0, 'C');
 $pdf->SetXY(115, $y_firma + 2);
 $pdf->Cell(80, 7, utf8_decode('C.I.:'), 0, 1, 'C');
 
-// Agregar la identificación del docente en una nueva línea debajo de la firma izquierda
+// Identificación del docente
 $pdf->SetXY(20, $y_firma + 10);
 $pdf->Cell(80, 7, utf8_decode('ID: ' . $factura['identificacion']), 0, 0, 'C');
 
+ob_end_clean(); // Limpiar salida previa
 $pdf->Output();
 ?>

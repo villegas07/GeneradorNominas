@@ -11,43 +11,45 @@ $filtro_tipo = $_GET['tipo'] ?? 'mes';
 $filtro_valor = $_GET['valor'] ?? date('Y-m');
 $sede_id = isset($_GET['sede_id']) ? intval($_GET['sede_id']) : 0;
 
-// --- CONSTRUCCIÓN DE LA CLÁUSULA WHERE ---
+// Construcción de condiciones WHERE para filtrar
 $where_conditions = [];
 
-// Filtro de fecha
+// Filtrado por fecha según tipo
 if ($filtro_tipo === 'mes') {
-    $where_conditions[] = "DATE_FORMAT(f.fecha, '%Y-%m') = '" . $conn->real_escape_string($filtro_valor) . "'";
+    $fecha_filtrada = $conn->real_escape_string($filtro_valor);
+    $where_conditions[] = "DATE_FORMAT(f.fecha, '%Y-%m') = '$fecha_filtrada'";
 } elseif ($filtro_tipo === 'semana') {
-    list($anio, $semana) = explode('-W', $filtro_valor);
-    $where_conditions[] = "YEAR(f.fecha) = " . intval($anio) . " AND WEEK(f.fecha, 1) = " . intval($semana);
-} else {
-    // Si no es mes ni semana, podría ser un filtro global sin fecha.
-    // Opcional: manejar error si el tipo es inválido pero presente
+    if (strpos($filtro_valor, '-W') !== false) {
+        list($anio, $semana) = explode('-W', $filtro_valor);
+        $anio = intval($anio);
+        $semana = intval($semana);
+        $where_conditions[] = "YEAR(f.fecha) = $anio AND WEEK(f.fecha, 1) = $semana";
+    }
 }
 
-// Filtro de sede
+// Filtrado por sede (relacionada a unidad curricular)
 if ($sede_id > 0) {
-    $where_conditions[] = "s.id_sede = " . $sede_id;
+    $where_conditions[] = "uc.id_sede = $sede_id";
 }
 
 $where_clause = !empty($where_conditions) ? "WHERE " . implode(' AND ', $where_conditions) : "";
 
-// --- CONSULTA DE MÉTRICAS ---
+// Consulta para obtener métricas
 $sql = "
     SELECT 
         s.nombre AS sede,
         d.nombre AS docente,
-        IFNULL(SUM(DISTINCT l.valor_total), 0) AS total_facturado,
+        IFNULL(SUM(df.monto), 0) AS total_facturado,
         IFNULL(SUM(pf.monto), 0) AS total_pagado,
-        (IFNULL(SUM(DISTINCT l.valor_total), 0) - IFNULL(SUM(pf.monto), 0)) AS total_pendiente
-    FROM docente d
-    JOIN liquidacion l ON d.id_docente = l.id_docente
-    JOIN unidad_curricular u ON l.id_unidad = u.id_unidad
-    JOIN sede s ON u.id_sede = s.id_sede
-    LEFT JOIN factura f ON d.id_docente = f.id_docente
+        (IFNULL(SUM(df.monto), 0) - IFNULL(SUM(pf.monto), 0)) AS total_pendiente
+    FROM detalle_factura df
+    JOIN factura f ON df.id_factura = f.id_factura
+    JOIN docente d ON f.id_docente = d.id_docente
+    JOIN unidad_curricular uc ON df.id_unidad = uc.id_unidad
+    JOIN sede s ON uc.id_sede = s.id_sede
     LEFT JOIN pago_factura pf ON f.id_factura = pf.id_factura
     $where_clause
-    GROUP BY s.nombre, d.nombre
+    GROUP BY s.id_sede, d.id_docente
     ORDER BY s.nombre, d.nombre
 ";
 
@@ -71,16 +73,18 @@ $fila = 2;
 while ($row = $result->fetch_assoc()) {
     $sheet->setCellValue('A' . $fila, $row['sede']);
     $sheet->setCellValue('B' . $fila, $row['docente']);
-    $sheet->setCellValue('C' . $fila, number_format($row['total_facturado'], 2));
-    $sheet->setCellValue('D' . $fila, number_format($row['total_pagado'], 2));
-    $sheet->setCellValue('E' . $fila, number_format($row['total_pendiente'], 2));
+    $sheet->setCellValue('C' . $fila, number_format($row['total_facturado'], 2, '.', ','));
+    $sheet->setCellValue('D' . $fila, number_format($row['total_pagado'], 2, '.', ','));
+    $sheet->setCellValue('E' . $fila, number_format($row['total_pendiente'], 2, '.', ','));
     $fila++;
 }
 
-// Descargar archivo
-$nombre_archivo = "Reporte_Metricas_" . $filtro_tipo . "_" . $filtro_valor . ".xlsx";
+// Enviar archivo para descarga
+$nombre_archivo = "Reporte_Metricas_{$filtro_tipo}_{$filtro_valor}.xlsx";
 header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 header("Content-Disposition: attachment; filename=\"$nombre_archivo\"");
+header('Cache-Control: max-age=0');
+
 $writer = new Xlsx($spreadsheet);
-$writer->save("php://output");
+$writer->save('php://output');
 exit;

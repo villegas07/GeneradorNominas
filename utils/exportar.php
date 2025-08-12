@@ -13,8 +13,6 @@ $sede_id = isset($_GET['sede_id']) ? intval($_GET['sede_id']) : 0;
 
 // Construcción de condiciones WHERE para filtrar
 $where_conditions = [];
-
-// Filtrado por fecha según tipo
 if ($filtro_tipo === 'mes') {
     $fecha_filtrada = $conn->real_escape_string($filtro_valor);
     $where_conditions[] = "DATE_FORMAT(f.fecha, '%Y-%m') = '$fecha_filtrada'";
@@ -26,28 +24,49 @@ if ($filtro_tipo === 'mes') {
         $where_conditions[] = "YEAR(f.fecha) = $anio AND WEEK(f.fecha, 1) = $semana";
     }
 }
-
-// Filtrado por sede (relacionada a unidad curricular)
 if ($sede_id > 0) {
     $where_conditions[] = "uc.id_sede = $sede_id";
 }
-
 $where_clause = !empty($where_conditions) ? "WHERE " . implode(' AND ', $where_conditions) : "";
 
-// Consulta para obtener métricas
+// Consulta para obtener métricas con cálculo proporcional
 $sql = "
     SELECT 
         s.nombre AS sede,
         d.nombre AS docente,
         IFNULL(SUM(df.monto), 0) AS total_facturado,
-        IFNULL(SUM(pf.monto), 0) AS total_pagado,
-        (IFNULL(SUM(df.monto), 0) - IFNULL(SUM(pf.monto), 0)) AS total_pendiente
+        (
+            SELECT IFNULL(SUM(pf.monto * (df2.monto / f2.total_pago)), 0)
+            FROM pago_factura pf
+            JOIN factura f2 ON pf.id_factura = f2.id_factura
+            JOIN detalle_factura df2 ON f2.id_factura = df2.id_factura
+            JOIN unidad_curricular uc2 ON df2.id_unidad = uc2.id_unidad
+            WHERE uc2.id_sede = s.id_sede
+              AND f2.id_docente = d.id_docente
+              " . ($filtro_tipo === 'mes' ? " AND DATE_FORMAT(f2.fecha, '%Y-%m') = '$filtro_valor'" : "") . "
+              " . ($filtro_tipo === 'semana' && strpos($filtro_valor, '-W') !== false ? 
+                    " AND YEAR(f2.fecha) = $anio AND WEEK(f2.fecha, 1) = $semana" : "") . "
+        ) AS total_pagado,
+        (
+            IFNULL(SUM(df.monto), 0) -
+            (
+                SELECT IFNULL(SUM(pf.monto * (df2.monto / f2.total_pago)), 0)
+                FROM pago_factura pf
+                JOIN factura f2 ON pf.id_factura = f2.id_factura
+                JOIN detalle_factura df2 ON f2.id_factura = df2.id_factura
+                JOIN unidad_curricular uc2 ON df2.id_unidad = uc2.id_unidad
+                WHERE uc2.id_sede = s.id_sede
+                  AND f2.id_docente = d.id_docente
+                  " . ($filtro_tipo === 'mes' ? " AND DATE_FORMAT(f2.fecha, '%Y-%m') = '$filtro_valor'" : "") . "
+                  " . ($filtro_tipo === 'semana' && strpos($filtro_valor, '-W') !== false ? 
+                        " AND YEAR(f2.fecha) = $anio AND WEEK(f2.fecha, 1) = $semana" : "") . "
+            )
+        ) AS total_pendiente
     FROM detalle_factura df
     JOIN factura f ON df.id_factura = f.id_factura
     JOIN docente d ON f.id_docente = d.id_docente
     JOIN unidad_curricular uc ON df.id_unidad = uc.id_unidad
     JOIN sede s ON uc.id_sede = s.id_sede
-    LEFT JOIN pago_factura pf ON f.id_factura = pf.id_factura
     $where_clause
     GROUP BY s.id_sede, d.id_docente
     ORDER BY s.nombre, d.nombre

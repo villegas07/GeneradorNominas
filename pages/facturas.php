@@ -19,10 +19,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['accion'] ?? '') === 'emiti
         $total = 0;
         foreach ($selecc as $lid) {
             $r = $conn->query("SELECT l.*, u.nombre unidad, u.grupo, u.id_periodo, p.codigo cohorte
-                FROM liquidacion l
-                JOIN unidad_curricular u ON u.id_unidad = l.id_unidad
-                JOIN periodo p ON u.id_periodo = p.id_periodo
-                WHERE l.id_liquidacion = " . intval($lid))->fetch_assoc();
+    FROM liquidacion l
+    JOIN unidad_curricular u ON u.id_unidad = l.id_unidad
+    JOIN periodo p ON u.id_periodo = p.id_periodo
+    WHERE l.id_liquidacion = " . intval($lid))->fetch_assoc();
+
             if (!$r) continue;
             $pendIni = !$r['pago_inicial_pagado'] ? $r['primer_pago'] : 0;
             $pendFin = $r['segundo_pago'];
@@ -44,8 +45,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['accion'] ?? '') === 'emiti
             if ($monto <= 0) continue;
             $total += $monto;
             $desc = "{$r['unidad']} (Grupo {$r['grupo']} - {$r['cohorte']})";
-            $conn->query("INSERT INTO detalle_factura (id_factura, porcentaje_pago, id_periodo, tipo_concepto, descripcion, monto, observacion)
-                VALUES ($id_fact, '$porcentaje_pago', {$r['id_periodo']}, 'Curso', '" . addslashes($desc) . "', $monto, '" . addslashes($r['observacion']) . "')");
+            $conn->query("INSERT INTO detalle_factura (id_factura, porcentaje_pago, id_periodo, id_unidad, tipo_concepto, descripcion, monto, observacion)
+    VALUES ($id_fact, '$porcentaje_pago', {$r['id_periodo']}, {$r['id_unidad']}, 'Curso', '" . addslashes($desc) . "', $monto, '" . addslashes($r['observacion']) . "')");
+
 
             if ($modo === 'inicial') {
                 $conn->query("UPDATE liquidacion SET pago_inicial_pagado = 1, primer_pago = 0 WHERE id_liquidacion=" . intval($lid));
@@ -76,12 +78,16 @@ $docentes = $conn->query("
 ");
 
 // Facturas emitidas
+// Facturas emitidas
 $facturas = $conn->query("
-  SELECT f.*, d.nombre AS docente_nombre
+  SELECT f.*, d.nombre AS docente_nombre,
+    (SELECT GROUP_CONCAT(df.descripcion ORDER BY df.descripcion SEPARATOR ', ') 
+     FROM detalle_factura df WHERE df.id_factura = f.id_factura) AS cursos_incluidos
   FROM factura f
   JOIN docente d ON f.id_docente=d.id_docente
   ORDER BY f.id_factura DESC
 ");
+
 ?>
 
 <?php include '../includes/header.php'; include '../includes/navbar.php'; ?>
@@ -169,7 +175,11 @@ $facturas = $conn->query("
                         <?php while ($f = $facturas->fetch_assoc()): ?>
                         <tr>
                             <td class="text-center"><?= $i++ ?></td>
-                            <td><?= htmlspecialchars($f['docente_nombre']) ?></td>
+                            <td>
+                                <?= htmlspecialchars($f['docente_nombre']) ?><br>
+                                <small
+                                    class="text-muted fst-italic"><?= htmlspecialchars($f['cursos_incluidos']) ?></small>
+                            </td>
                             <td class="text-center"><?= $f['fecha'] ?></td>
                             <td class="text-end">$<?= number_format($f['total_pago'], 2) ?></td>
                             <td class="text-center">
@@ -182,6 +192,7 @@ $facturas = $conn->query("
                         </tr>
                         <?php endwhile; ?>
                     </tbody>
+
                 </table>
             </div>
             <nav aria-label="Facturas nav">
@@ -214,7 +225,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function getSelectedLiquidaciones() {
-        const selectedIds = Array.from(document.querySelectorAll('#tabla_liq input[name="seleccionados[]"]:checked'))
+        const selectedIds = Array.from(document.querySelectorAll(
+                '#tabla_liq input[name="seleccionados[]"]:checked'))
             .map(cb => parseInt(cb.value));
         return liquidacionesData.filter(l => selectedIds.includes(parseInt(l.id_liquidacion)));
     }
@@ -305,9 +317,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const liqId = parseInt(cb.value);
             const liq = liquidacionesData.find(l => parseInt(l.id_liquidacion) === liqId);
             if (liq && liq.pago_inicial_pagado == 1) {
-                 cb.checked = false;
+                cb.checked = false;
             } else {
-                 cb.checked = isChecked;
+                cb.checked = isChecked;
             }
         });
         handleSelectionChange();
@@ -324,7 +336,8 @@ document.addEventListener('DOMContentLoaded', () => {
             .then(r => r.json()).then(data => {
                 if (!data.length) {
                     if (!isPostPaymentReload) {
-                        Swal.fire('Información', 'El docente no tiene liquidaciones pendientes.', 'info');
+                        Swal.fire('Información', 'El docente no tiene liquidaciones pendientes.',
+                            'info');
                     }
                     return;
                 };

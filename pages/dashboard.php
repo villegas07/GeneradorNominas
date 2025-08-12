@@ -9,113 +9,66 @@ $sede_id = isset($_GET['sede_id']) ? intval($_GET['sede_id']) : 0;
 // Obtener todas las sedes para el select
 $sedes = $conn->query("SELECT id_sede, nombre FROM sede ORDER BY nombre");
 
-// Definir las consultas según filtro de sede
+// --- CONSULTAS DINÁMICAS CON FILTRO DE SEDE ---
+
+// Condición para el JOIN y WHERE según la sede
+$filtro_sede_condicion = '';
 if ($sede_id > 0) {
-    // Total facturado filtrado por sede
-    $sql_total_facturado = "
-        SELECT SUM(f.total_pago)
-        FROM factura f
+    // Esta condición se insertará en las consultas que lo necesiten
+    $filtro_sede_condicion = "
         WHERE EXISTS (
             SELECT 1
             FROM docente_unidad du
             JOIN unidad_curricular uc ON uc.id_unidad = du.id_unidad
-            WHERE du.id_docente = f.id_docente
-            AND uc.id_sede = $sede_id
+            WHERE du.id_docente = f.id_docente AND uc.id_sede = $sede_id
         )
-    ";
-
-    // Total pagado filtrado por sede
-    $sql_total_pagado = "
-        SELECT SUM(pf.monto)
-        FROM pago_factura pf
-        JOIN factura f ON pf.id_factura = f.id_factura
-        WHERE EXISTS (
-            SELECT 1
-            FROM docente_unidad du
-            JOIN unidad_curricular uc ON uc.id_unidad = du.id_unidad
-            WHERE du.id_docente = f.id_docente
-            AND uc.id_sede = $sede_id
-        )
-    ";
-
-    // Top docentes filtrado por sede
-    $sql_top_docentes = "
-        SELECT d.nombre, SUM(f.total_pago) AS total
-        FROM factura f
-        JOIN docente d ON f.id_docente = d.id_docente
-        WHERE EXISTS (
-            SELECT 1
-            FROM docente_unidad du
-            JOIN unidad_curricular uc ON uc.id_unidad = du.id_unidad
-            WHERE du.id_docente = f.id_docente
-            AND uc.id_sede = $sede_id
-        )
-        GROUP BY d.id_docente
-        ORDER BY total DESC
-        LIMIT 5
-    ";
-
-    // Facturas por mes filtrado por sede
-    $sql_facturas_por_mes = "
-        SELECT DATE_FORMAT(f.fecha,'%Y-%m') AS mes, SUM(f.total_pago) as total
-        FROM factura f
-        WHERE EXISTS (
-            SELECT 1
-            FROM docente_unidad du
-            JOIN unidad_curricular uc ON uc.id_unidad = du.id_unidad
-            WHERE du.id_docente = f.id_docente
-            AND uc.id_sede = $sede_id
-        )
-        GROUP BY mes
-        ORDER BY mes
-    ";
-
-    // Pagos por mes filtrado por sede
-    $sql_pagos_por_mes = "
-        SELECT DATE_FORMAT(p.fecha,'%Y-%m') AS mes, SUM(p.monto) AS total
-        FROM pago_factura p
-        JOIN factura f ON p.id_factura = f.id_factura
-        WHERE EXISTS (
-            SELECT 1
-            FROM docente_unidad du
-            JOIN unidad_curricular uc ON uc.id_unidad = du.id_unidad
-            WHERE du.id_docente = f.id_docente
-            AND uc.id_sede = $sede_id
-        )
-        GROUP BY mes
-        ORDER BY mes
-    ";
-
-} else {
-    // Sin filtro de sede: sumamos todo sin joins para evitar duplicados
-    $sql_total_facturado = "SELECT SUM(total_pago) FROM factura";
-    $sql_total_pagado = "
-        SELECT SUM(monto)
-        FROM pago_factura pf
-        JOIN factura f ON pf.id_factura = f.id_factura
-    ";
-    $sql_top_docentes = "
-        SELECT d.nombre, SUM(f.total_pago) AS total
-        FROM factura f
-        JOIN docente d ON f.id_docente = d.id_docente
-        GROUP BY d.id_docente
-        ORDER BY total DESC
-        LIMIT 5
-    ";
-    $sql_facturas_por_mes = "
-        SELECT DATE_FORMAT(fecha,'%Y-%m') AS mes, SUM(total_pago) as total
-        FROM factura
-        GROUP BY mes
-        ORDER BY mes
-    ";
-    $sql_pagos_por_mes = "
-        SELECT DATE_FORMAT(p.fecha,'%Y-%m') AS mes, SUM(p.monto) AS total
-        FROM pago_factura p
-        JOIN factura f ON p.id_factura = f.id_factura
-        GROUP BY mes
-        ORDER BY mes
     ";
 }
+
+// Total Facturado
+$sql_total_facturado = "
+    SELECT IFNULL(SUM(f.total_pago), 0)
+    FROM factura f
+    $filtro_sede_condicion
+";
+
+// Total Pagado
+$sql_total_pagado = "
+    SELECT IFNULL(SUM(pf.monto), 0)
+    FROM pago_factura pf
+    JOIN factura f ON pf.id_factura = f.id_factura
+    $filtro_sede_condicion
+";
+
+// Top 5 Docentes
+$sql_top_docentes = "
+    SELECT d.nombre, SUM(f.total_pago) AS total
+    FROM factura f
+    JOIN docente d ON f.id_docente = d.id_docente
+    $filtro_sede_condicion
+    GROUP BY d.id_docente
+    ORDER BY total DESC
+    LIMIT 5
+";
+
+// Evolución de Facturas por Mes
+$sql_facturas_por_mes = "
+    SELECT DATE_FORMAT(f.fecha, '%Y-%m') AS mes, SUM(f.total_pago) as total
+    FROM factura f
+    $filtro_sede_condicion
+    GROUP BY mes
+    ORDER BY mes
+";
+
+// Evolución de Pagos por Mes
+$sql_pagos_por_mes = "
+    SELECT DATE_FORMAT(p.fecha, '%Y-%m') AS mes, SUM(p.monto) AS total
+    FROM pago_factura p
+    JOIN factura f ON p.id_factura = f.id_factura
+    $filtro_sede_condicion
+    GROUP BY mes
+    ORDER BY mes
+";
 
 // Ejecutar consultas y obtener resultados
 $total_facturado = $conn->query($sql_total_facturado)->fetch_row()[0] ?: 0;

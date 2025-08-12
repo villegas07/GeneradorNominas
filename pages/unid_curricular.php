@@ -48,9 +48,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
         // Verificar duplicados solo en la misma sede
 $stmt_check = $conn->prepare("
     SELECT COUNT(*) 
-    FROM unidad_curricular 
-    WHERE nombre = ? 
-      AND grupo = ? 
+    FROM unidad_curricular
+    WHERE nombre = ?
+      AND grupo = ?
       AND id_periodo = ?
       AND id_sede = ?
 ");

@@ -1,5 +1,6 @@
 <?php
 session_start();
+require_once '../utils/verificar_sesion.php';
 include '../config/db.php';
 
 // POST: emitir factura

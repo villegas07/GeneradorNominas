@@ -7,36 +7,118 @@ include '../config/db.php';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion']) && $_POST['accion'] === 'crear_liquidacion') {
     header('Content-Type: application/json');
 
-    $id_docente = intval($_POST['id_docente']);
-    $id_unidad = intval($_POST['id_unidad']);
-    $n_estudiantes = intval($_POST['numero_estudiantes']);
-    $valor_unit = floatval($_POST['valor_unit']);
-    $valor_total = $valor_unit * $n_estudiantes; // valor por estudiante * cantidad de estudiantes
-    $primer_pago = round($valor_total * 0.5, 2);
-    $segundo_pago = round($valor_total - $primer_pago, 2);
+    // Para que mysqli lance excepciones y podamos capturarlas
+    mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 
-    $observacion = trim($_POST['observacion']);
+    $id_docente = intval($_POST['id_docente'] ?? 0);
+    $id_unidad = intval($_POST['id_unidad'] ?? 0);
+    $numero_estudiantes = intval($_POST['numero_estudiantes'] ?? 0);
+    $valor_total = floatval($_POST['valor_total'] ?? 0);
 
-    $stmt = $conn->prepare("SELECT COUNT(*) FROM liquidacion WHERE id_unidad = ?");
-    $stmt->bind_param("i", $id_unidad);
-    $stmt->execute();
-    $stmt->bind_result($ya_liquidada);
-    $stmt->fetch();
-    $stmt->close();
+    $primer_pago = (isset($_POST['primer_pago']) && $_POST['primer_pago'] !== '') ? floatval($_POST['primer_pago']) : null;
+    $segundo_pago = (isset($_POST['segundo_pago']) && $_POST['segundo_pago'] !== '') ? floatval($_POST['segundo_pago']) : null;
+    $observacion = isset($_POST['observacion']) && $_POST['observacion'] !== '' ? trim($_POST['observacion']) : null;
 
-    if ($ya_liquidada > 0) {
-        echo json_encode(['success' => false, 'msg' => 'Esta unidad ya fue liquidada para este docente.']);
+    // Forzar que llegue como array
+    $nombres_estudiantes = (isset($_POST['nombres_estudiantes']) && is_array($_POST['nombres_estudiantes']))
+        ? $_POST['nombres_estudiantes']
+        : [];
+
+    try {
+        $conn->begin_transaction();
+
+        // Build dinámico para permitir NULL en campos opcionales
+        $columns = ['id_docente','id_unidad','numero_estudiantes','valor_total'];
+        $placeholders = ['?','?','?','?'];
+        $types = 'iiid';
+        $params = [$id_docente, $id_unidad, $numero_estudiantes, $valor_total];
+
+        if ($primer_pago !== null) {
+            $columns[] = 'primer_pago';
+            $placeholders[] = '?';
+            $types .= 'd';
+            $params[] = $primer_pago;
+        } else {
+            $columns[] = 'primer_pago';
+            $placeholders[] = 'NULL';
+        }
+
+        if ($segundo_pago !== null) {
+            $columns[] = 'segundo_pago';
+            $placeholders[] = '?';
+            $types .= 'd';
+            $params[] = $segundo_pago;
+        } else {
+            $columns[] = 'segundo_pago';
+            $placeholders[] = 'NULL';
+        }
+
+        if ($observacion !== null) {
+            $columns[] = 'observacion';
+            $placeholders[] = '?';
+            $types .= 's';
+            $params[] = $observacion;
+        } else {
+            $columns[] = 'observacion';
+            $placeholders[] = 'NULL';
+        }
+
+        $sql = "INSERT INTO liquidacion (" . implode(',', $columns) . ") VALUES (" . implode(',', $placeholders) . ")";
+        $stmt = $conn->prepare($sql);
+
+        // Bind dinámico (con referencias, requerido por bind_param)
+        if (count($params) > 0) {
+            $bind_names = [];
+            $bind_names[] = &$types;
+            for ($i = 0; $i < count($params); $i++) {
+                $bind_names[] = &$params[$i];
+            }
+            call_user_func_array([$stmt, 'bind_param'], $bind_names);
+        }
+
+        $stmt->execute();
+        $id_liquidacion = $stmt->insert_id;
+        $stmt->close();
+
+        // Preparar statements para insertar estudiantes y asociaciones (eficiente reutilizar prepare)
+        $stmtInsertEst = $conn->prepare("INSERT INTO estudiante (nombre) VALUES (?)");
+        $stmtAssoc = $conn->prepare("INSERT INTO liquidacion_estudiante (id_liquidacion, id_estudiante) VALUES (?, ?)");
+
+        foreach ($nombres_estudiantes as $nombre) {
+            $nombre = trim($nombre);
+            if ($nombre === "") continue;
+
+            // Insertar estudiante
+            $nameVar = $nombre;
+            $stmtInsertEst->bind_param("s", $nameVar);
+            $stmtInsertEst->execute();
+            $id_estudiante = $stmtInsertEst->insert_id;
+
+            // Asociar estudiante a la liquidación
+            $stmtAssoc->bind_param("ii", $id_liquidacion, $id_estudiante);
+            $stmtAssoc->execute();
+        }
+
+        $stmtInsertEst->close();
+        $stmtAssoc->close();
+
+        $conn->commit();
+
+        echo json_encode([
+            "success" => true,
+            "msg" => "Liquidación y estudiantes guardados correctamente",
+            "id_liquidacion" => $id_liquidacion
+        ]);
+        exit; // <-- IMPORTANTE: evitar que se imprima HTML extra después del JSON
+    } catch (Exception $e) {
+        $conn->rollback();
+        error_log("Error crear_liquidacion: " . $e->getMessage());
+        echo json_encode([
+            "success" => false,
+            "msg" => "Error al guardar la liquidación: " . $e->getMessage()
+        ]);
         exit;
     }
-
-    $stmt = $conn->prepare("
-        INSERT INTO liquidacion (id_docente, id_unidad, numero_estudiantes, valor_total, primer_pago, segundo_pago, observacion)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-    ");
-    $stmt->bind_param("iiiddds", $id_docente, $id_unidad, $n_estudiantes, $valor_total, $primer_pago, $segundo_pago, $observacion);
-    $success = $stmt->execute();
-    echo json_encode(['success' => $success]);
-    exit;
 }
 
 // Eliminar liquidación
@@ -109,6 +191,33 @@ include '../includes/navbar.php';
                             required disabled>
                     </div>
 
+                    <div class="col-md-12" id="contenedor_estudiantes"></div>
+
+                      <script>
+document.getElementById('numero_estudiantes').addEventListener('input', function () {
+    const contenedor = document.getElementById('contenedor_estudiantes');
+    contenedor.innerHTML = '';
+
+    const n = parseInt(this.value);
+    if (!isNaN(n) && n > 0) {
+        for (let i = 1; i <= n; i++) {
+            contenedor.innerHTML += `
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">Estudiante ${i}</label>
+                    <input type="text" 
+                           name="nombres_estudiantes[]" 
+                           class="form-control" 
+                           placeholder="Nombre estudiante ${i}" 
+                           required>
+                </div>
+            `;
+        }
+    }
+});
+</script>
+
+
+
                     <div class="col-md-2">
                         <label class="form-label fw-semibold">Valor unitario</label>
                         <input type="text" name="valor_unit" id="valor_unit" class="form-control" readonly>
@@ -118,6 +227,12 @@ include '../includes/navbar.php';
                         <label class="form-label fw-semibold">Total</label>
                         <input type="text" id="valor_total_preview" class="form-control" readonly>
                     </div>
+
+                    <!-- Campos ocultos para enviar los valores -->
+                    <input type="hidden" name="valor_total" id="valor_total">
+                    <input type="hidden" name="primer_pago" id="primer_pago">
+                    <input type="hidden" name="segundo_pago" id="segundo_pago">
+
 
                     <div class="col-md-2">
                         <label class="form-label fw-semibold">&nbsp;</label>
@@ -341,11 +456,22 @@ function actualizarTotalPreview() {
     const valorUnit = parseFloat(document.getElementById('valor_unit').value) || 0;
     const numEst = parseInt(document.getElementById('numero_estudiantes').value) || 0;
     const total = valorUnit * numEst;
+
+    // Mostrar en el campo de vista previa
     document.getElementById('valor_total_preview').value = total > 0 ? total.toFixed(2) : '';
+
+    // Asignar a inputs ocultos (para enviar al backend)
+    document.getElementById('valor_total').value = total.toFixed(2);
+
+    // Calcular 50% y asignar
+    const mitad = total / 2;
+    document.getElementById('primer_pago').value = mitad.toFixed(2);
+    document.getElementById('segundo_pago').value = mitad.toFixed(2);
 }
 
+
 document.getElementById('numero_estudiantes').addEventListener('input', actualizarTotalPreview);
-document.getElementById('select_unidad').addEventListener('change', function () {
+document.getElementById('select_unidad').addEventListener('change', function() {
     const sel = this;
     const id = sel.value;
     const valor = sel.selectedOptions[0]?.text.match(/\$\d+(\.\d+)?$/);
@@ -354,7 +480,6 @@ document.getElementById('select_unidad').addEventListener('change', function () 
     document.getElementById('btn_liquidar').disabled = !id;
     actualizarTotalPreview(); // recalcula cuando cambia unidad
 });
-
 </script>
 
 <?php include '../includes/footer.php'; ?>

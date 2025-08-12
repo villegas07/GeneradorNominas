@@ -9,6 +9,7 @@ $sede_id = isset($_GET['sede_id']) ? intval($_GET['sede_id']) : 0;
 // Obtener todas las sedes para el select
 $sedes = $conn->query("SELECT id_sede, nombre FROM sede ORDER BY nombre");
 
+
 // --- CONSULTAS DINÁMICAS CON FILTRO DE SEDE (LÓGICA CORREGIDA) ---
 
 // Condición para el JOIN y WHERE según la sede, usando la tabla `liquidacion`
@@ -21,6 +22,18 @@ if ($sede_id > 0) {
             FROM liquidacion l
             JOIN unidad_curricular uc ON l.id_unidad = uc.id_unidad
             WHERE l.id_docente = f.id_docente AND uc.id_sede = $sede_id
+// --- CONSULTAS DINÁMICAS CON FILTRO DE SEDE ---
+
+// Condición para el JOIN y WHERE según la sede
+$filtro_sede_condicion = '';
+if ($sede_id > 0) {
+    // Esta condición se insertará en las consultas que lo necesiten
+    $filtro_sede_condicion = "
+        WHERE EXISTS (
+            SELECT 1
+            FROM docente_unidad du
+            JOIN unidad_curricular uc ON uc.id_unidad = du.id_unidad
+            WHERE du.id_docente = f.id_docente AND uc.id_sede = $sede_id
         )
     ";
 }

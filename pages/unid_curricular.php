@@ -14,38 +14,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
     $accion = $_POST['accion'];
 
     if ($accion === 'crear_periodo') {
-        $codigo = trim($_POST['codigo']);
-        $fecha_inicio = $_POST['fecha_inicio'];
-        $fecha_fin = $_POST['fecha_fin'];
+    $codigo = trim($_POST['codigo']);
 
-        $stmt = $conn->prepare("SELECT COUNT(*) FROM periodo WHERE codigo = ?");
+    $stmt = $conn->prepare("SELECT COUNT(*) FROM periodo WHERE codigo = ?");
+    $stmt->bind_param("s", $codigo);
+    $stmt->execute();
+    $stmt->bind_result($existe);
+    $stmt->fetch();
+    $stmt->close();
+
+    if ($existe > 0) {
+        echo json_encode(['success' => false, 'duplicado' => true]);
+    } else {
+        // Ahora solo insertamos el código
+        $stmt = $conn->prepare("INSERT INTO periodo (codigo) VALUES (?)");
         $stmt->bind_param("s", $codigo);
-        $stmt->execute();
-        $stmt->bind_result($existe);
-        $stmt->fetch();
-        $stmt->close();
-
-        if ($existe > 0) {
-            echo json_encode(['success' => false, 'duplicado' => true]);
+        if ($stmt->execute()) {
+            echo json_encode(['success' => true, 'id' => $stmt->insert_id, 'codigo' => $codigo]);
         } else {
-            $stmt = $conn->prepare("INSERT INTO periodo (codigo, fecha_inicio, fecha_fin) VALUES (?, ?, ?)");
-            $stmt->bind_param("sss", $codigo, $fecha_inicio, $fecha_fin);
-            if ($stmt->execute()) {
-                echo json_encode(['success' => true, 'id' => $stmt->insert_id, 'codigo' => $codigo]);
-            } else {
-                echo json_encode(['success' => false]);
-            }
-            $stmt->close();
+            echo json_encode(['success' => false]);
         }
-        exit;
+        $stmt->close();
     }
+    exit;
+}
+
 
     if ($accion === 'crear_unidad') {
         $nombre = $_POST['nombre'];
         $grupo = $_POST['grupo'];
         $id_periodo = $_POST['id_periodo'];
 
-        // Verificar duplicados
         // Verificar duplicados solo en la misma sede
 $stmt_check = $conn->prepare("
     SELECT COUNT(*) 
@@ -293,6 +292,7 @@ include '../includes/navbar.php';
 </div>
 
 <!-- Modal para crear cohorte -->
+<!-- Modal para crear cohorte -->
 <div class="modal fade" id="modalPeriodo" tabindex="-1">
     <div class="modal-dialog">
         <form id="formPeriodo" class="modal-content rounded-4 border-0 shadow-sm">
@@ -304,10 +304,6 @@ include '../includes/navbar.php';
             <div class="modal-body">
                 <label class="form-label">Código</label>
                 <input type="text" name="codigo" class="form-control" required>
-                <label class="form-label mt-2">Fecha Inicio</label>
-                <input type="date" name="fecha_inicio" class="form-control" required>
-                <label class="form-label mt-2">Fecha Fin</label>
-                <input type="date" name="fecha_fin" class="form-control" required>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-primary">Guardar Cohorte</button>
@@ -315,6 +311,7 @@ include '../includes/navbar.php';
         </form>
     </div>
 </div>
+
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>

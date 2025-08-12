@@ -7,20 +7,32 @@ use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 // Parámetros GET
-$filtro_tipo = $_GET['tipo'] ?? 'mes'; // mes o semana
-$filtro_valor = $_GET['valor'] ?? date('Y-m'); // 2025-08 o 2025-W32
+$filtro_tipo = $_GET['tipo'] ?? 'mes';
+$filtro_valor = $_GET['valor'] ?? date('Y-m');
+$sede_id = isset($_GET['sede_id']) ? intval($_GET['sede_id']) : 0;
 
-// Filtro de fecha usando factura.fecha
+// --- CONSTRUCCIÓN DE LA CLÁUSULA WHERE ---
+$where_conditions = [];
+
+// Filtro de fecha
 if ($filtro_tipo === 'mes') {
-    $filtro_fecha = "DATE_FORMAT(f.fecha, '%Y-%m') = '" . $conn->real_escape_string($filtro_valor) . "'";
+    $where_conditions[] = "DATE_FORMAT(f.fecha, '%Y-%m') = '" . $conn->real_escape_string($filtro_valor) . "'";
 } elseif ($filtro_tipo === 'semana') {
     list($anio, $semana) = explode('-W', $filtro_valor);
-    $filtro_fecha = "YEAR(f.fecha) = " . intval($anio) . " AND WEEK(f.fecha, 1) = " . intval($semana);
+    $where_conditions[] = "YEAR(f.fecha) = " . intval($anio) . " AND WEEK(f.fecha, 1) = " . intval($semana);
 } else {
-    die("Tipo de filtro inválido");
+    // Si no es mes ni semana, podría ser un filtro global sin fecha.
+    // Opcional: manejar error si el tipo es inválido pero presente
 }
 
-// Consulta de métricas
+// Filtro de sede
+if ($sede_id > 0) {
+    $where_conditions[] = "s.id_sede = " . $sede_id;
+}
+
+$where_clause = !empty($where_conditions) ? "WHERE " . implode(' AND ', $where_conditions) : "";
+
+// --- CONSULTA DE MÉTRICAS ---
 $sql = "
     SELECT 
         s.nombre AS sede,
@@ -34,7 +46,7 @@ $sql = "
     JOIN sede s ON u.id_sede = s.id_sede
     LEFT JOIN factura f ON d.id_docente = f.id_docente
     LEFT JOIN pago_factura pf ON f.id_factura = pf.id_factura
-    WHERE $filtro_fecha
+    $where_clause
     GROUP BY s.nombre, d.nombre
     ORDER BY s.nombre, d.nombre
 ";

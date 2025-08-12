@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 12-08-2025 a las 09:35:56
+-- Tiempo de generación: 13-08-2025 a las 01:04:38
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.2.12
 
@@ -121,6 +121,18 @@ CREATE TABLE `liquidacion` (
   `segundo_pago` decimal(12,2) DEFAULT NULL,
   `observacion` text DEFAULT NULL,
   `pago_inicial_pagado` tinyint(1) DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `liquidacion_estudiante`
+--
+
+CREATE TABLE `liquidacion_estudiante` (
+  `id_liquidacion_estudiante` int(11) NOT NULL,
+  `id_liquidacion` int(11) NOT NULL,
+  `id_estudiante` int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -270,6 +282,14 @@ ALTER TABLE `liquidacion`
   ADD KEY `id_unidad` (`id_unidad`);
 
 --
+-- Indices de la tabla `liquidacion_estudiante`
+--
+ALTER TABLE `liquidacion_estudiante`
+  ADD PRIMARY KEY (`id_liquidacion_estudiante`),
+  ADD KEY `id_liquidacion` (`id_liquidacion`),
+  ADD KEY `id_estudiante` (`id_estudiante`);
+
+--
 -- Indices de la tabla `pago_factura`
 --
 ALTER TABLE `pago_factura`
@@ -360,6 +380,12 @@ ALTER TABLE `liquidacion`
   MODIFY `id_liquidacion` int(11) NOT NULL AUTO_INCREMENT;
 
 --
+-- AUTO_INCREMENT de la tabla `liquidacion_estudiante`
+--
+ALTER TABLE `liquidacion_estudiante`
+  MODIFY `id_liquidacion_estudiante` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT de la tabla `pago_factura`
 --
 ALTER TABLE `pago_factura`
@@ -427,6 +453,13 @@ ALTER TABLE `factura`
 ALTER TABLE `liquidacion`
   ADD CONSTRAINT `liquidacion_ibfk_1` FOREIGN KEY (`id_docente`) REFERENCES `docente` (`id_docente`),
   ADD CONSTRAINT `liquidacion_ibfk_2` FOREIGN KEY (`id_unidad`) REFERENCES `unidad_curricular` (`id_unidad`);
+
+--
+-- Filtros para la tabla `liquidacion_estudiante`
+--
+ALTER TABLE `liquidacion_estudiante`
+  ADD CONSTRAINT `liquidacion_estudiante_ibfk_1` FOREIGN KEY (`id_liquidacion`) REFERENCES `liquidacion` (`id_liquidacion`) ON DELETE CASCADE,
+  ADD CONSTRAINT `liquidacion_estudiante_ibfk_2` FOREIGN KEY (`id_estudiante`) REFERENCES `estudiante` (`id_estudiante`) ON DELETE CASCADE;
 
 --
 -- Filtros para la tabla `pago_factura`

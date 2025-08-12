@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 11-08-2025 a las 21:56:50
+-- Tiempo de generación: 12-08-2025 a las 09:35:56
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.2.12
 
@@ -43,7 +43,8 @@ CREATE TABLE `catalogo_unidades` (
 CREATE TABLE `detalle_factura` (
   `id_detalle` int(11) NOT NULL,
   `id_factura` int(11) NOT NULL,
-  `porcentaje_pago` enum('50%','100%') NOT NULL,
+  `id_unidad` int(11) NOT NULL,
+  `porcentaje_pago` decimal(5,2) NOT NULL,
   `id_periodo` int(11) NOT NULL,
   `tipo_concepto` enum('Curso','Tesis de Grado','Proyecto','Seminario','Otro') NOT NULL,
   `descripcion` varchar(255) NOT NULL,
@@ -98,6 +99,7 @@ CREATE TABLE `estudiante` (
 CREATE TABLE `factura` (
   `id_factura` int(11) NOT NULL,
   `id_docente` int(11) NOT NULL,
+  `id_unidad` int(11) DEFAULT NULL,
   `fecha` date NOT NULL,
   `total_pago` decimal(12,2) NOT NULL,
   `convenio` varchar(255) DEFAULT NULL
@@ -207,7 +209,7 @@ CREATE TABLE `usuario` (
 --
 
 INSERT INTO `usuario` (`id_usuario`, `username`, `password_hash`, `rol`, `estado`, `id_docente`, `super_admin`) VALUES
-(1, 'admin', '$2y$10$H7NBB7QWwk3mQUjVJ8WlFe5R2kUbXk7Plae.KfQRFhm1m7BfxB5iG', 'admin', 1, NULL, 1);
+(1, 'admin', '$2y$10$t0kQlChDLiiZDbtVyzS2COdT3sMucea821heoNvJ3NxBJLN/LTVZa', 'admin', 1, NULL, 1);
 
 --
 -- Índices para tablas volcadas
@@ -226,6 +228,7 @@ ALTER TABLE `catalogo_unidades`
 ALTER TABLE `detalle_factura`
   ADD PRIMARY KEY (`id_detalle`),
   ADD KEY `id_factura` (`id_factura`),
+  ADD KEY `id_unidad` (`id_unidad`),
   ADD KEY `id_periodo` (`id_periodo`);
 
 --
@@ -255,7 +258,8 @@ ALTER TABLE `estudiante`
 --
 ALTER TABLE `factura`
   ADD PRIMARY KEY (`id_factura`),
-  ADD KEY `id_docente` (`id_docente`);
+  ADD KEY `id_docente` (`id_docente`),
+  ADD KEY `id_unidad` (`id_unidad`);
 
 --
 -- Indices de la tabla `liquidacion`
@@ -400,7 +404,8 @@ ALTER TABLE `usuario`
 --
 ALTER TABLE `detalle_factura`
   ADD CONSTRAINT `detalle_factura_ibfk_1` FOREIGN KEY (`id_factura`) REFERENCES `factura` (`id_factura`),
-  ADD CONSTRAINT `detalle_factura_ibfk_2` FOREIGN KEY (`id_periodo`) REFERENCES `periodo` (`id_periodo`);
+  ADD CONSTRAINT `detalle_factura_ibfk_2` FOREIGN KEY (`id_unidad`) REFERENCES `unidad_curricular` (`id_unidad`),
+  ADD CONSTRAINT `detalle_factura_ibfk_3` FOREIGN KEY (`id_periodo`) REFERENCES `periodo` (`id_periodo`);
 
 --
 -- Filtros para la tabla `docente_unidad`
@@ -413,7 +418,8 @@ ALTER TABLE `docente_unidad`
 -- Filtros para la tabla `factura`
 --
 ALTER TABLE `factura`
-  ADD CONSTRAINT `factura_ibfk_1` FOREIGN KEY (`id_docente`) REFERENCES `docente` (`id_docente`);
+  ADD CONSTRAINT `factura_ibfk_1` FOREIGN KEY (`id_docente`) REFERENCES `docente` (`id_docente`),
+  ADD CONSTRAINT `factura_ibfk_2` FOREIGN KEY (`id_unidad`) REFERENCES `unidad_curricular` (`id_unidad`);
 
 --
 -- Filtros para la tabla `liquidacion`

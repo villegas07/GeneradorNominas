@@ -11,9 +11,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion']) && $_POST['
     $id_unidad = intval($_POST['id_unidad']);
     $n_estudiantes = intval($_POST['numero_estudiantes']);
     $valor_unit = floatval($_POST['valor_unit']);
-    $valor_total = $valor_unit;
+    $valor_total = $valor_unit * $n_estudiantes; // valor por estudiante * cantidad de estudiantes
     $primer_pago = round($valor_total * 0.5, 2);
     $segundo_pago = round($valor_total - $primer_pago, 2);
+
     $observacion = trim($_POST['observacion']);
 
     $stmt = $conn->prepare("SELECT COUNT(*) FROM liquidacion WHERE id_unidad = ?");
@@ -104,7 +105,8 @@ include '../includes/navbar.php';
 
                     <div class="col-md-2">
                         <label class="form-label fw-semibold">N° Estudiantes</label>
-                        <input type="number" name="numero_estudiantes" id="numero_estudiantes" class="form-control" required disabled>
+                        <input type="number" name="numero_estudiantes" id="numero_estudiantes" class="form-control"
+                            required disabled>
                     </div>
 
                     <div class="col-md-2">
@@ -113,8 +115,14 @@ include '../includes/navbar.php';
                     </div>
 
                     <div class="col-md-2">
+                        <label class="form-label fw-semibold">Total</label>
+                        <input type="text" id="valor_total_preview" class="form-control" readonly>
+                    </div>
+
+                    <div class="col-md-2">
                         <label class="form-label fw-semibold">&nbsp;</label>
-                        <button type="submit" class="btn btn-success w-100 fw-semibold" disabled id="btn_liquidar">Liquidar</button>
+                        <button type="submit" class="btn btn-success w-100 fw-semibold" disabled
+                            id="btn_liquidar">Liquidar</button>
                     </div>
 
                     <div class="col-md-12">
@@ -129,14 +137,16 @@ include '../includes/navbar.php';
     <div class="card mt-4 shadow-sm border-0 rounded-4">
         <div class="card-body">
             <div class="mb-3">
-                <input type="text" id="buscar" class="form-control shadow-sm" placeholder="🔍 Buscar por docente, cohorte o unidad...">
+                <input type="text" id="buscar" class="form-control shadow-sm"
+                    placeholder="🔍 Buscar por docente, cohorte o unidad...">
             </div>
 
             <div class="table-responsive">
-                <table id="tablaLiquidaciones" class="table table-bordered table-hover align-middle rounded-4 overflow-hidden">
+                <table id="tablaLiquidaciones"
+                    class="table table-bordered table-hover align-middle rounded-4 overflow-hidden">
                     <thead class="table-dark text-center">
                         <tr>
-                            <th>#</th>
+                            <th>N°</th>
                             <th>Docente</th>
                             <th>Unidad</th>
                             <th>Grupo</th>
@@ -158,10 +168,12 @@ include '../includes/navbar.php';
                             <td><?= htmlspecialchars($l['cohorte']) ?></td>
                             <td class="text-center"><?= intval($l['numero_estudiantes']) ?></td>
                             <td>$<?= number_format($l['valor_total'],2) ?></td>
-                            <td>$<?= number_format($l['primer_pago'],2) ?> / $<?= number_format($l['segundo_pago'],2) ?></td>
+                            <td>$<?= number_format($l['primer_pago'],2) ?> / $<?= number_format($l['segundo_pago'],2) ?>
+                            </td>
                             <td><?= htmlspecialchars($l['observacion']) ?></td>
                             <td class="text-center">
-                                <button class="btn btn-outline-danger btn-sm" onclick="eliminarLiquidacion(<?= $l['id_liquidacion'] ?>)">Eliminar</button>
+                                <button class="btn btn-outline-danger btn-sm"
+                                    onclick="eliminarLiquidacion(<?= $l['id_liquidacion'] ?>)">Eliminar</button>
                             </td>
                         </tr>
                         <?php endwhile; ?>
@@ -220,9 +232,11 @@ document.addEventListener('DOMContentLoaded', () => {
         pagination.querySelectorAll('.page-item a').forEach((btn, idx) => {
             btn.addEventListener('click', e => {
                 e.preventDefault();
-                if (btn.textContent === 'Anterior' && currentPage>1) currentPage--;
-                else if (btn.textContent === 'Siguiente' && currentPage<pageCount) currentPage++;
-                else if (!isNaN(parseInt(btn.textContent))) currentPage = parseInt(btn.textContent);
+                if (btn.textContent === 'Anterior' && currentPage > 1) currentPage--;
+                else if (btn.textContent === 'Siguiente' && currentPage < pageCount)
+                    currentPage++;
+                else if (!isNaN(parseInt(btn.textContent))) currentPage = parseInt(btn
+                    .textContent);
                 displayRows(currentPage);
                 setupPagination();
             });
@@ -266,7 +280,8 @@ document.getElementById('select_docente').addEventListener('change', function() 
             data.forEach(u => {
                 const opt = document.createElement('option');
                 opt.value = u.id_unidad;
-                opt.text = `${u.unidad} (${u.cohorte} / Grupo ${u.grupo}) - $${parseFloat(u.valor).toFixed(2)}`;
+                opt.text =
+                    `${u.unidad} (${u.cohorte} / Grupo ${u.grupo}) - $${parseFloat(u.valor).toFixed(2)}`;
                 selUn.appendChild(opt);
             });
             selUn.disabled = false;
@@ -284,10 +299,14 @@ document.getElementById('select_unidad').addEventListener('change', function() {
 
 document.getElementById('formLiquidar').addEventListener('submit', function(e) {
     e.preventDefault();
-    fetch('liquidacion.php', { method: 'POST', body: new FormData(this) })
+    fetch('liquidacion.php', {
+            method: 'POST',
+            body: new FormData(this)
+        })
         .then(r => r.json())
         .then(data => {
-            if (data.success) Swal.fire('Generado', 'Liquidación creada', 'success').then(() => location.reload());
+            if (data.success) Swal.fire('Generado', 'Liquidación creada', 'success').then(() => location
+                .reload());
             else Swal.fire('Error', data.msg || 'No se pudo generar liquidación', 'error');
         })
         .catch(() => Swal.fire('Error', 'Fallo en la solicitud', 'error'));
@@ -305,14 +324,37 @@ function eliminarLiquidacion(id) {
             const f = new FormData();
             f.append('accion', 'eliminar_liquidacion');
             f.append('id_liquidacion', id);
-            fetch('liquidacion.php', { method: 'POST', body: f })
+            fetch('liquidacion.php', {
+                    method: 'POST',
+                    body: f
+                })
                 .then(r => r.json()).then(d => {
-                    if (d.success) Swal.fire('Eliminado', 'Liquidación eliminada', 'success').then(() => location.reload());
+                    if (d.success) Swal.fire('Eliminado', 'Liquidación eliminada', 'success').then(() =>
+                        location.reload());
                     else Swal.fire('Error', 'No se pudo eliminar', 'error');
                 });
         }
     });
 }
+
+function actualizarTotalPreview() {
+    const valorUnit = parseFloat(document.getElementById('valor_unit').value) || 0;
+    const numEst = parseInt(document.getElementById('numero_estudiantes').value) || 0;
+    const total = valorUnit * numEst;
+    document.getElementById('valor_total_preview').value = total > 0 ? total.toFixed(2) : '';
+}
+
+document.getElementById('numero_estudiantes').addEventListener('input', actualizarTotalPreview);
+document.getElementById('select_unidad').addEventListener('change', function () {
+    const sel = this;
+    const id = sel.value;
+    const valor = sel.selectedOptions[0]?.text.match(/\$\d+(\.\d+)?$/);
+    document.getElementById('valor_unit').value = valor ? valor[0].replace('$', '') : '';
+    document.getElementById('numero_estudiantes').disabled = !id;
+    document.getElementById('btn_liquidar').disabled = !id;
+    actualizarTotalPreview(); // recalcula cuando cambia unidad
+});
+
 </script>
 
 <?php include '../includes/footer.php'; ?>

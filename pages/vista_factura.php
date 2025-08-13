@@ -5,6 +5,7 @@ require('../fpdf/fpdf.php');
 require('../config/db.php');
 require('../utils/numero_a_letras.php');
 
+// Validar ID de factura
 if (isset($_GET['id_factura'])) {
     $id_factura = intval($_GET['id_factura']);
 } elseif (isset($_GET['id'])) {
@@ -13,6 +14,7 @@ if (isset($_GET['id_factura'])) {
     die("Error: No se proporcionó el ID de la factura.");
 }
 
+// Obtener datos de la factura
 $stmt = $conn->prepare("
     SELECT f.*, d.nombre AS docente_nombre, d.identificacion
     FROM factura f
@@ -28,6 +30,7 @@ if (!$factura) {
     die('Factura no encontrada');
 }
 
+// Obtener detalles de la factura
 $stmt_detalle = $conn->prepare("
     SELECT df.porcentaje_pago, df.descripcion, df.monto, df.id_unidad
     FROM detalle_factura df
@@ -38,6 +41,7 @@ $stmt_detalle->execute();
 $detalle_result = $stmt_detalle->get_result();
 $detalles = $detalle_result->fetch_all(MYSQLI_ASSOC);
 
+// Obtener estudiantes relacionados
 $stmt_estudiantes = $conn->prepare("
     SELECT DISTINCT e.nombre AS estudiante_nombre
     FROM liquidacion_estudiante le
@@ -57,17 +61,19 @@ $nombres_estudiantes = empty($estudiantes)
     ? '---'
     : implode(', ', array_column($estudiantes, 'estudiante_nombre'));
 
+// Configuración general
 $configFile = '../config/config.json';
 $config = json_decode(file_get_contents($configFile), true);
 $logoPath = '../' . $config['logo_path'];
 $nit = $config['nit'];
 
+// Clase PDF personalizada
 class PDF extends FPDF
 {
     public $logoPath;
     public $numeroFactura;
 
-    function __construct($orientation='P', $unit='mm', $size='A4', $logoPath, $numeroFactura)
+    function __construct($orientation, $unit, $size, $logoPath, $numeroFactura)
     {
         parent::__construct($orientation, $unit, $size);
         $this->logoPath = $logoPath;
@@ -97,40 +103,26 @@ class PDF extends FPDF
         $wmax = ($w - 2 * $this->cMargin) * 1000 / $this->FontSize;
         $s = str_replace("\r", '', $txt);
         $nb = strlen($s);
-        if ($nb > 0 and $s[$nb - 1] == "\n") {
+        if ($nb > 0 && $s[$nb - 1] == "\n") {
             $nb--;
         }
         $sep = -1;
-        $i = 0;
-        $j = 0;
-        $l = 0;
-        $nl = 1;
+        $i = 0; $j = 0; $l = 0; $nl = 1;
         while ($i < $nb) {
             $c = $s[$i];
             if ($c == "\n") {
-                $i++;
-                $sep = -1;
-                $j = $i;
-                $l = 0;
-                $nl++;
+                $i++; $sep = -1; $j = $i; $l = 0; $nl++;
                 continue;
             }
-            if ($c == ' ') {
-                $sep = $i;
-            }
+            if ($c == ' ') $sep = $i;
             $l += $cw[$c];
             if ($l > $wmax) {
                 if ($sep == -1) {
-                    if ($i == $j) {
-                        $i++;
-                    }
+                    if ($i == $j) $i++;
                 } else {
                     $i = $sep + 1;
                 }
-                $sep = -1;
-                $j = $i;
-                $l = 0;
-                $nl++;
+                $sep = -1; $j = $i; $l = 0; $nl++;
             } else {
                 $i++;
             }
@@ -138,7 +130,6 @@ class PDF extends FPDF
         return $nl;
     }
 
-    // Fila que ajusta altura automáticamente
     function Row($data, $widths, $aligns)
     {
         $nb = 0;
@@ -167,14 +158,17 @@ class PDF extends FPDF
     }
 }
 
+// Crear PDF
 $pdf = new PDF('P', 'mm', 'A4', $logoPath, $id_factura);
 $pdf->AddPage();
 $pdf->SetFont('Arial', '', 11);
 
+// Datos de cabecera
 $pdf->SetXY(10, 50);
 $pdf->SetFont('Arial', '', 10);
 $pdf->Cell(60, 6, utf8_decode('Nit: ' . $nit), 0, 1);
 
+// Fecha y total
 $pdf->SetXY(120, 45);
 $pdf->SetFont('Arial', 'B', 10);
 $pdf->Cell(17, 7, utf8_decode('AÑO'), 1, 0, 'C');
@@ -189,6 +183,7 @@ $pdf->Cell(17, 7, date('m', strtotime($factura['fecha'])), 1, 0, 'C');
 $pdf->Cell(17, 7, date('d', strtotime($factura['fecha'])), 1, 0, 'C');
 $pdf->Cell(30, 7, '$' . number_format($factura['total_pago'], 2), 1, 1, 'C');
 
+// Datos del beneficiario
 $pdf->Ln(5);
 $pdf->Cell(50, 7, utf8_decode('PÁGUESE A LA ORDEN DE:'), 1, 0);
 $pdf->Cell(140, 7, utf8_decode($factura['docente_nombre']), 1, 1);
@@ -199,6 +194,7 @@ $pdf->Cell(140, 7, utf8_decode(numeroALetras($factura['total_pago']) . ' pesos')
 $pdf->Cell(50, 7, utf8_decode('POR CONCEPTO DE:'), 1, 0);
 $pdf->Cell(140, 7, utf8_decode('HONORARIOS PROFESIONALES CONVENIO UREL POLINORTE'), 1, 1);
 
+// Tabla de conceptos
 $pdf->Ln(5);
 $pdf->SetFont('Arial', 'B', 10);
 $pdf->Cell(70, 7, utf8_decode('CONCEPTO'), 1, 0, 'C');
@@ -255,31 +251,34 @@ foreach ($detalles as $detalle) {
     );
 }
 
+// Método de pago y total
 $metodo_pago = !empty($factura['metodo_pago']) ? $factura['metodo_pago'] : 'Efectivo';
 
 $pdf->Ln(5);
-$pdf->SetXY(115, $pdf->GetY());
 $pdf->SetFont('Arial', 'B', 10);
-$pdf->Cell(45, 10, utf8_decode('MÉTODO DE PAGO:'), 1, 0, 'L');
+$pdf->Cell(115, 10, '', 0, 0);
+$pdf->Cell(40, 10, utf8_decode('MÉTODO DE PAGO:'), 1, 0, 'L');
 $pdf->SetFont('Arial', '', 10);
-$pdf->Cell(40, 10, utf8_decode($metodo_pago), 1, 1, 'L');
+$pdf->Cell(35, 10, utf8_decode($metodo_pago), 1, 1, 'L');
 
-$pdf->SetXY(115, $pdf->GetY());
 $pdf->SetFont('Arial', 'B', 10);
-$pdf->Cell(45, 10, utf8_decode('TOTAL:'), 1, 0, 'L');
-$pdf->Cell(40, 10, '$' . number_format($factura['total_pago'], 2), 1, 1, 'R');
+$pdf->Cell(115, 10, '', 0, 0);
+$pdf->Cell(40, 10, utf8_decode('TOTAL:'), 1, 0, 'L');
+$pdf->Cell(35, 10, '$' . number_format($factura['total_pago'], 2), 1, 1, 'R');
 
 $pdf->Ln(20);
+
+// Firmas
 $y_firma = $pdf->GetY();
 $pdf->Line(20, $y_firma, 100, $y_firma);
 $pdf->Line(115, $y_firma, 195, $y_firma);
 $pdf->SetFont('Arial', '', 10);
-$pdf->SetXY(20, $y_firma + 2);
+$pdf->Ln(2);
 $pdf->Cell(80, 7, utf8_decode('Firma del Beneficiario'), 0, 0, 'C');
-$pdf->SetXY(115, $y_firma + 2);
+$pdf->Cell(15, 7, '', 0, 0);
 $pdf->Cell(80, 7, utf8_decode('C.I.:'), 0, 1, 'C');
 
-$pdf->SetXY(20, $y_firma + 10);
+$pdf->Ln(5);
 $pdf->Cell(80, 7, utf8_decode('ID: ' . $factura['identificacion']), 0, 0, 'C');
 
 ob_end_clean();

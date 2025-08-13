@@ -43,30 +43,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $_POST['accion'] === 'crear') {
-    $identificacion = $_POST['identificacion'];
+    header('Content-Type: application/json');
+    $identificacion = trim($_POST['identificacion']);
 
-    $stmt = $conn->prepare("SELECT COUNT(*) FROM docente WHERE identificacion = ?");
+    // Validar duplicado
+    $stmt = $conn->prepare("SELECT COUNT(*) AS total FROM docente WHERE identificacion = ?");
     $stmt->bind_param("s", $identificacion);
     $stmt->execute();
-    $stmt->bind_result($existe);
-    $stmt->fetch();
+    $result = $stmt->get_result();
+    $row = $result->fetch_assoc();
+    $existe = (int)$row['total'];
     $stmt->close();
 
     if ($existe > 0) {
-        $_SESSION['mensaje'] = ['tipo' => 'error', 'texto' => 'Ya existe un docente con esa identificación'];
-    } else {
-        $stmt = $conn->prepare("INSERT INTO docente (nombre, identificacion, nit) VALUES (?, ?, ?)");
-        $stmt->bind_param("sss", $_POST['nombre'], $identificacion, $_POST['nit']);
-        $ok = $stmt->execute();
-        $_SESSION['mensaje'] = [
-            'tipo' => $ok ? 'success' : 'error',
-            'texto' => $ok ? 'Docente registrado exitosamente' : 'No se pudo registrar el docente'
-        ];
-        $stmt->close();
+        echo json_encode(['success' => false, 'duplicado' => true]);
+        exit;
     }
-    header("Location: docentes.php");
+
+    // Insertar nuevo docente
+    $stmt = $conn->prepare("INSERT INTO docente (nombre, identificacion, nit) VALUES (?, ?, ?)");
+    $stmt->bind_param("sss", $_POST['nombre'], $identificacion, $_POST['nit']);
+    $ok = $stmt->execute();
+    $stmt->close();
+
+    echo json_encode(['success' => $ok]);
     exit;
 }
+
 
 include '../includes/header.php';
 include '../includes/navbar.php';
@@ -220,6 +223,28 @@ function eliminarDocente(id) {
         }
     });
 }
+// Interceptar submit de creación
+document.querySelector('form[method="POST"][class="row g-3"]').addEventListener('submit', e => {
+    e.preventDefault();
+    const form = new FormData(e.target);
+    fetch('docentes.php', { method: 'POST', body: form })
+        .then(res => res.json())
+        .then(data => {
+            if (data.duplicado) {
+                Swal.fire('Error', 'Ya existe un docente con esa identificación', 'error');
+            } else if (data.success) {
+                Swal.fire('Registrado', 'Docente registrado exitosamente', 'success')
+                    .then(() => location.reload());
+            } else {
+                Swal.fire('Error', 'No se pudo registrar el docente', 'error');
+            }
+        })
+        .catch(err => {
+            Swal.fire('Error', 'Hubo un problema al procesar la solicitud', 'error');
+            console.error(err);
+        });
+});
+
 
 <?php if (isset($_SESSION['mensaje'])): ?>
 Swal.fire({

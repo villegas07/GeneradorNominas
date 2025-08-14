@@ -34,11 +34,11 @@ $current_page = basename($_SERVER['PHP_SELF']); // Obtiene el nombre del archivo
       <ul class="navbar-nav me-auto mb-2 mb-lg-0">
         <li class="nav-item"><a class="nav-link <?= $current_page == 'dashboard.php' ? 'active' : '' ?>" href="/nomina/pages/dashboard.php">🏠 Dashboard</a></li>
         <li class="nav-item"><a class="nav-link <?= $current_page == 'docentes.php' ? 'active' : '' ?>" href="/nomina/pages/docentes.php">👩‍🏫 Docentes</a></li>
-        <li class="nav-item"><a class="nav-link <?= $current_page == 'liquidacion.php' ? 'active' : '' ?>" href="/nomina/pages/liquidacion.php">🧾 Liquidaciones</a></li>
-        <li class="nav-item"><a class="nav-link <?= $current_page == 'unid_curricular.php' ? 'active' : '' ?>" href="/nomina/pages/unid_curricular.php">📘 Unid Curriculares</a></li>
         <li class="nav-item"><a class="nav-link <?= $current_page == 'catalogo_unidades.php' ? 'active' : '' ?>" href="/nomina/pages/catalogo_unidades.php">📚 Catálogo de Unid</a></li>
-        <li class="nav-item"><a class="nav-link <?= $current_page == 'asignar_unidad.php' ? 'active' : '' ?>" href="/nomina/pages/asignar_unidad.php">📝 Asignar Unidad</a></li>
         <li class="nav-item"><a class="nav-link <?= $current_page == 'sedes.php' ? 'active' : '' ?>" href="/nomina/pages/sedes.php">🏫 Sedes</a></li>
+        <li class="nav-item"><a class="nav-link <?= $current_page == 'unid_curricular.php' ? 'active' : '' ?>" href="/nomina/pages/unid_curricular.php">📘 Unid Curriculares</a></li>
+        <li class="nav-item"><a class="nav-link <?= $current_page == 'asignar_unidad.php' ? 'active' : '' ?>" href="/nomina/pages/asignar_unidad.php">📝 Asignar Unidad</a></li>
+        <li class="nav-item"><a class="nav-link <?= $current_page == 'liquidacion.php' ? 'active' : '' ?>" href="/nomina/pages/liquidacion.php">🧾 Liquidaciones</a></li>
         <li class="nav-item"><a class="nav-link <?= $current_page == 'facturas.php' ? 'active' : '' ?>" href="/nomina/pages/facturas.php">💼 Facturas</a></li>
         <li class="nav-item"><a class="nav-link <?= $current_page == 'pagos_recibidos.php' ? 'active' : '' ?>" href="/nomina/pages/pagos_recibidos.php">💳 Pagos</a></li>
       </ul>

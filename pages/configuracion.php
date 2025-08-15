@@ -5,32 +5,36 @@ include '../includes/header.php';
 include '../includes/navbar.php';
 require_once '../utils/verificar_sesion.php';
 
-// Ruta al archivo de configuración
-$configFile = '../config/config.json';
-$config = json_decode(file_get_contents($configFile), true);
+require_once '../config/db.php';
 $successMessage = '';
 $errorMessage = '';
 
+// Obtener configuración desde la base de datos
+$stmt = $conn->prepare("SELECT * FROM configuracion_factura WHERE id = 1");
+$stmt->execute();
+$result = $stmt->get_result();
+$config = $result->fetch_assoc();
+if (!$config) {
+    $config = ['nit' => '', 'logo_path' => 'assets/images/logo.png', 'convenio_pago' => 'Convenio de pago estándar según normativa institucional'];
+}
+
 // Manejar el formulario
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Actualizar NIT
-    if (isset($_POST['nit'])) {
-        $config['nit'] = trim($_POST['nit']);
-    }
+    $nit = trim($_POST['nit']);
+    $convenio_pago = trim($_POST['convenio_pago']);
+    $logo_path = $config['logo_path'];
 
     // Manejar subida de logo
     if (isset($_FILES['logo']) && $_FILES['logo']['error'] == UPLOAD_ERR_OK) {
         $uploadDir = '../assets/images/';
-        // Sanitize filename
         $filename = preg_replace("/[^a-zA-Z0-9\._-]/", "", basename($_FILES['logo']['name']));
         $uploadFile = $uploadDir . $filename;
         $imageFileType = strtolower(pathinfo($uploadFile, PATHINFO_EXTENSION));
 
-        // Validar tipo de archivo
         $allowedTypes = ['jpg', 'jpeg', 'png', 'gif'];
         if (in_array($imageFileType, $allowedTypes)) {
             if (move_uploaded_file($_FILES['logo']['tmp_name'], $uploadFile)) {
-                $config['logo_path'] = 'assets/images/' . $filename;
+                $logo_path = 'assets/images/' . $filename;
             } else {
                 $errorMessage = 'Error al mover el archivo subido.';
             }
@@ -39,12 +43,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    // Guardar la configuración actualizada
+    // Guardar en base de datos
     if (empty($errorMessage)) {
-        if (file_put_contents($configFile, json_encode($config, JSON_PRETTY_PRINT))) {
+        $stmt = $conn->prepare("UPDATE configuracion_factura SET nit = ?, logo_path = ?, convenio_pago = ? WHERE id = 1");
+        $stmt->bind_param("sss", $nit, $logo_path, $convenio_pago);
+        if ($stmt->execute()) {
             $successMessage = '¡Configuración guardada exitosamente!';
+            $config['nit'] = $nit;
+            $config['logo_path'] = $logo_path;
+            $config['convenio_pago'] = $convenio_pago;
         } else {
-            $errorMessage = 'Error al guardar el archivo de configuración.';
+            $errorMessage = 'Error al guardar la configuración.';
         }
     }
 }
@@ -72,6 +81,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="col-md-6">
                     <label for="logo" class="form-label fw-semibold">Logo de la Empresa</label>
                     <input class="form-control" type="file" id="logo" name="logo">
+                </div>
+
+                <div class="col-12">
+                    <label for="convenio_pago" class="form-label fw-semibold">Convenio de Pago</label>
+                    <textarea class="form-control" id="convenio_pago" name="convenio_pago" rows="3"><?= htmlspecialchars($config['convenio_pago']) ?></textarea>
                 </div>
 
                 <div class="col-12 mt-4">

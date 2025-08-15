@@ -12,7 +12,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion']) && $_POST['
 
     $id_docente = intval($_POST['id_docente'] ?? 0);
     $id_unidad = intval($_POST['id_unidad'] ?? 0);
+    $id_pais = intval($_POST['id_pais'] ?? 0);
     $numero_estudiantes = intval($_POST['numero_estudiantes'] ?? 0);
+    $estudiantes_no_aplica = isset($_POST['estudiantes_no_aplica']) ? 1 : 0;
     $valor_total = floatval($_POST['valor_total'] ?? 0);
 
     $primer_pago = (isset($_POST['primer_pago']) && $_POST['primer_pago'] !== '') ? floatval($_POST['primer_pago']) : null;
@@ -28,10 +30,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion']) && $_POST['
         $conn->begin_transaction();
 
         // Build dinámico para permitir NULL en campos opcionales
-        $columns = ['id_docente','id_unidad','numero_estudiantes','valor_total'];
-        $placeholders = ['?','?','?','?'];
-        $types = 'iiid';
-        $params = [$id_docente, $id_unidad, $numero_estudiantes, $valor_total];
+        $columns = ['id_docente','id_unidad','id_pais','numero_estudiantes','estudiantes_no_aplica','valor_total'];
+        $placeholders = ['?','?','?','?','?','?'];
+        $types = 'iiiiii';
+        $params = [$id_docente, $id_unidad, $id_pais, $numero_estudiantes, $estudiantes_no_aplica, $valor_total];
 
         if ($primer_pago !== null) {
             $columns[] = 'primer_pago';
@@ -80,27 +82,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion']) && $_POST['
         $id_liquidacion = $stmt->insert_id;
         $stmt->close();
 
-        // Preparar statements para insertar estudiantes y asociaciones (eficiente reutilizar prepare)
-        $stmtInsertEst = $conn->prepare("INSERT INTO estudiante (nombre) VALUES (?)");
-        $stmtAssoc = $conn->prepare("INSERT INTO liquidacion_estudiante (id_liquidacion, id_estudiante) VALUES (?, ?)");
+        // Solo insertar estudiantes si no es "No Aplica"
+        if (!$estudiantes_no_aplica && !empty($nombres_estudiantes)) {
+            $stmtInsertEst = $conn->prepare("INSERT INTO estudiante (nombre) VALUES (?)");
+            $stmtAssoc = $conn->prepare("INSERT INTO liquidacion_estudiante (id_liquidacion, id_estudiante) VALUES (?, ?)");
 
-        foreach ($nombres_estudiantes as $nombre) {
-            $nombre = trim($nombre);
-            if ($nombre === "") continue;
+            foreach ($nombres_estudiantes as $nombre) {
+                $nombre = trim($nombre);
+                if ($nombre === "") continue;
 
-            // Insertar estudiante
-            $nameVar = $nombre;
-            $stmtInsertEst->bind_param("s", $nameVar);
-            $stmtInsertEst->execute();
-            $id_estudiante = $stmtInsertEst->insert_id;
+                $nameVar = $nombre;
+                $stmtInsertEst->bind_param("s", $nameVar);
+                $stmtInsertEst->execute();
+                $id_estudiante = $stmtInsertEst->insert_id;
 
-            // Asociar estudiante a la liquidación
-            $stmtAssoc->bind_param("ii", $id_liquidacion, $id_estudiante);
-            $stmtAssoc->execute();
+                $stmtAssoc->bind_param("ii", $id_liquidacion, $id_estudiante);
+                $stmtAssoc->execute();
+            }
+
+            $stmtInsertEst->close();
+            $stmtAssoc->close();
         }
-
-        $stmtInsertEst->close();
-        $stmtAssoc->close();
 
         $conn->commit();
 
@@ -141,12 +143,16 @@ $docentes = $conn->query("
     ORDER BY d.nombre
 ");
 
+// Obtener países para el select
+$paises = $conn->query("SELECT id_pais, nombre FROM pais ORDER BY nombre");
+
 $liquidaciones = $conn->query("
-    SELECT l.*, d.nombre AS docente_nombre, u.nombre AS unidad_nombre, u.grupo, p.codigo AS cohorte
+    SELECT l.*, d.nombre AS docente_nombre, u.nombre AS unidad_nombre, u.grupo, p.codigo AS cohorte, pa.nombre AS pais_nombre
     FROM liquidacion l
     JOIN docente d ON l.id_docente = d.id_docente
     JOIN unidad_curricular u ON l.id_unidad = u.id_unidad
     JOIN periodo p ON u.id_periodo = p.id_periodo
+    LEFT JOIN pais pa ON l.id_pais = pa.id_pais
     ORDER BY l.id_liquidacion DESC
 ");
 
@@ -186,31 +192,69 @@ include '../includes/navbar.php';
                     </div>
 
                     <div class="col-md-2">
+                        <label class="form-label fw-semibold">País</label>
+                        <select name="id_pais" class="form-select" required>
+                            <option value="">Seleccione país</option>
+                            <?php while($pais = $paises->fetch_assoc()): ?>
+                            <option value="<?= $pais['id_pais'] ?>"><?= htmlspecialchars($pais['nombre']) ?></option>
+                            <?php endwhile; ?>
+                        </select>
+                    </div>
+
+                    <div class="col-md-2">
                         <label class="form-label fw-semibold">N° Estudiantes</label>
-                        <input type="number" name="numero_estudiantes" id="numero_estudiantes" class="form-control"
-                            required disabled>
+                        <input type="number" name="numero_estudiantes" id="numero_estudiantes" class="form-control" disabled>
+                    </div>
+
+                    <div class="col-md-2">
+                        <label class="form-label fw-semibold">&nbsp;</label>
+                        <div class="form-check mt-2">
+                            <input class="form-check-input" type="checkbox" name="estudiantes_no_aplica" id="estudiantes_no_aplica">
+                            <label class="form-check-label" for="estudiantes_no_aplica">
+                                No Aplica
+                            </label>
+                        </div>
                     </div>
 
                     <div class="col-md-12" id="contenedor_estudiantes"></div>
 
                       <script>
+// Manejar checkbox "No Aplica"
+document.getElementById('estudiantes_no_aplica').addEventListener('change', function() {
+    const numEstudiantes = document.getElementById('numero_estudiantes');
+    const contenedor = document.getElementById('contenedor_estudiantes');
+    
+    if (this.checked) {
+        numEstudiantes.value = 0;
+        numEstudiantes.disabled = true;
+        contenedor.innerHTML = '';
+        actualizarTotalPreview();
+    } else {
+        numEstudiantes.disabled = false;
+    }
+});
+
 document.getElementById('numero_estudiantes').addEventListener('input', function () {
     const contenedor = document.getElementById('contenedor_estudiantes');
+    const noAplica = document.getElementById('estudiantes_no_aplica').checked;
+    
     contenedor.innerHTML = '';
 
-    const n = parseInt(this.value);
-    if (!isNaN(n) && n > 0) {
-        for (let i = 1; i <= n; i++) {
-            contenedor.innerHTML += `
-                <div class="col-md-3">
-                    <label class="form-label fw-semibold">Estudiante ${i}</label>
-                    <input type="text" 
-                           name="nombres_estudiantes[]" 
-                           class="form-control" 
-                           placeholder="Nombre estudiante ${i}" 
-                           required>
-                </div>
-            `;
+    if (!noAplica) {
+        const n = parseInt(this.value);
+        if (!isNaN(n) && n > 0) {
+            for (let i = 1; i <= n; i++) {
+                contenedor.innerHTML += `
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">Estudiante ${i}</label>
+                        <input type="text" 
+                               name="nombres_estudiantes[]" 
+                               class="form-control" 
+                               placeholder="Nombre estudiante ${i}" 
+                               required>
+                    </div>
+                `;
+            }
         }
     }
 });
@@ -266,6 +310,7 @@ document.getElementById('numero_estudiantes').addEventListener('input', function
                             <th>Unidad</th>
                             <th>Grupo</th>
                             <th>Cohorte</th>
+                            <th>País</th>
                             <th>Estudiantes</th>
                             <th>Total</th>
                             <th>50% / 50%</th>
@@ -281,7 +326,8 @@ document.getElementById('numero_estudiantes').addEventListener('input', function
                             <td><?= htmlspecialchars($l['unidad_nombre']) ?></td>
                             <td><?= htmlspecialchars($l['grupo']) ?></td>
                             <td><?= htmlspecialchars($l['cohorte']) ?></td>
-                            <td class="text-center"><?= intval($l['numero_estudiantes']) ?></td>
+                            <td><?= htmlspecialchars($l['pais_nombre'] ?? 'N/A') ?></td>
+                            <td class="text-center"><?= $l['estudiantes_no_aplica'] ? 'No Aplica' : intval($l['numero_estudiantes']) ?></td>
                             <td>$<?= number_format($l['valor_total'],2) ?></td>
                             <td>$<?= number_format($l['primer_pago'],2) ?> / $<?= number_format($l['segundo_pago'],2) ?>
                             </td>
@@ -454,16 +500,13 @@ function eliminarLiquidacion(id) {
 
 function actualizarTotalPreview() {
     const valorUnit = parseFloat(document.getElementById('valor_unit').value) || 0;
-    const numEst = parseInt(document.getElementById('numero_estudiantes').value) || 0;
+    const noAplica = document.getElementById('estudiantes_no_aplica').checked;
+    const numEst = noAplica ? 1 : (parseInt(document.getElementById('numero_estudiantes').value) || 0);
     const total = valorUnit * numEst;
 
-    // Mostrar en el campo de vista previa
     document.getElementById('valor_total_preview').value = total > 0 ? total.toFixed(2) : '';
-
-    // Asignar a inputs ocultos (para enviar al backend)
     document.getElementById('valor_total').value = total.toFixed(2);
 
-    // Calcular 50% y asignar
     const mitad = total / 2;
     document.getElementById('primer_pago').value = mitad.toFixed(2);
     document.getElementById('segundo_pago').value = mitad.toFixed(2);

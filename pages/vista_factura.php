@@ -61,11 +61,14 @@ $nombres_estudiantes = empty($estudiantes)
     ? '---'
     : implode(', ', array_column($estudiantes, 'estudiante_nombre'));
 
-// Configuración general
-$configFile = '../config/config.json';
-$config = json_decode(file_get_contents($configFile), true);
+// Obtener configuración desde la base de datos
+$stmt_config = $conn->prepare("SELECT * FROM configuracion_factura WHERE id = 1");
+$stmt_config->execute();
+$result_config = $stmt_config->get_result();
+$config = $result_config->fetch_assoc();
 $logoPath = '../' . $config['logo_path'];
 $nit = $config['nit'];
+$convenio_pago = $config['convenio_pago'];
 
 // Clase PDF personalizada
 class PDF extends FPDF
@@ -192,7 +195,7 @@ $pdf->Cell(50, 7, utf8_decode('LA SUMA DE:'), 1, 0);
 $pdf->Cell(140, 7, utf8_decode(numeroALetras($factura['total_pago']) . ' pesos'), 1, 1);
 
 $pdf->Cell(50, 7, utf8_decode('POR CONCEPTO DE:'), 1, 0);
-$pdf->Cell(140, 7, utf8_decode('HONORARIOS PROFESIONALES CONVENIO UREL POLINORTE'), 1, 1);
+$pdf->Cell(140, 7, utf8_decode($convenio_pago), 1, 1);
 
 // Tabla de conceptos
 $pdf->Ln(5);

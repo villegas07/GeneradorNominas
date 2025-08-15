@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 13-08-2025 a las 01:04:38
+-- Tiempo de generación: 15-08-2025 a las 20:34:28
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.2.12
 
@@ -33,6 +33,27 @@ CREATE TABLE `catalogo_unidades` (
   `descripcion` text DEFAULT NULL,
   `valor_base` decimal(12,2) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `configuracion_factura`
+--
+
+CREATE TABLE `configuracion_factura` (
+  `id` int(11) NOT NULL,
+  `convenio_pago` text NOT NULL,
+  `nit` varchar(50) NOT NULL,
+  `logo_path` varchar(255) NOT NULL,
+  `fecha_actualizacion` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Volcado de datos para la tabla `configuracion_factura`
+--
+
+INSERT INTO `configuracion_factura` (`id`, `convenio_pago`, `nit`, `logo_path`, `fecha_actualizacion`) VALUES
+(1, 'CONVENIO  UPEL- POLINORTE', '900123456-7', 'assets/images/logo.png', '2025-08-15 18:32:52');
 
 -- --------------------------------------------------------
 
@@ -115,7 +136,9 @@ CREATE TABLE `liquidacion` (
   `id_liquidacion` int(11) NOT NULL,
   `id_docente` int(11) NOT NULL,
   `id_unidad` int(11) NOT NULL,
+  `id_pais` int(11) DEFAULT NULL,
   `numero_estudiantes` int(11) DEFAULT 0,
+  `estudiantes_no_aplica` tinyint(1) DEFAULT 0,
   `valor_total` decimal(12,2) NOT NULL,
   `primer_pago` decimal(12,2) DEFAULT NULL,
   `segundo_pago` decimal(12,2) DEFAULT NULL,
@@ -235,6 +258,12 @@ ALTER TABLE `catalogo_unidades`
   ADD UNIQUE KEY `nombre` (`nombre`);
 
 --
+-- Indices de la tabla `configuracion_factura`
+--
+ALTER TABLE `configuracion_factura`
+  ADD PRIMARY KEY (`id`);
+
+--
 -- Indices de la tabla `detalle_factura`
 --
 ALTER TABLE `detalle_factura`
@@ -279,7 +308,8 @@ ALTER TABLE `factura`
 ALTER TABLE `liquidacion`
   ADD PRIMARY KEY (`id_liquidacion`),
   ADD KEY `id_docente` (`id_docente`),
-  ADD KEY `id_unidad` (`id_unidad`);
+  ADD KEY `id_unidad` (`id_unidad`),
+  ADD KEY `id_pais` (`id_pais`);
 
 --
 -- Indices de la tabla `liquidacion_estudiante`
@@ -342,6 +372,12 @@ ALTER TABLE `usuario`
 --
 ALTER TABLE `catalogo_unidades`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT de la tabla `configuracion_factura`
+--
+ALTER TABLE `configuracion_factura`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT de la tabla `detalle_factura`
@@ -452,7 +488,8 @@ ALTER TABLE `factura`
 --
 ALTER TABLE `liquidacion`
   ADD CONSTRAINT `liquidacion_ibfk_1` FOREIGN KEY (`id_docente`) REFERENCES `docente` (`id_docente`),
-  ADD CONSTRAINT `liquidacion_ibfk_2` FOREIGN KEY (`id_unidad`) REFERENCES `unidad_curricular` (`id_unidad`);
+  ADD CONSTRAINT `liquidacion_ibfk_2` FOREIGN KEY (`id_unidad`) REFERENCES `unidad_curricular` (`id_unidad`),
+  ADD CONSTRAINT `liquidacion_ibfk_3` FOREIGN KEY (`id_pais`) REFERENCES `pais` (`id_pais`);
 
 --
 -- Filtros para la tabla `liquidacion_estudiante`
